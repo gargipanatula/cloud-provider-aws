@@ -18,6 +18,7 @@ package aws
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"os"
@@ -25,7 +26,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2"
 
@@ -284,7 +285,7 @@ func TestTagResource(t *testing.T) {
 				klog.SetOutput(os.Stderr)
 			}()
 
-			err := c.TagResource(tt.instanceID, nil)
+			err := c.TagResource(context.TODO(), tt.instanceID, nil)
 			assert.Equal(t, tt.err, err)
 			assert.Contains(t, logBuf.String(), tt.expectedMessage)
 		})
@@ -336,7 +337,7 @@ func TestUntagResource(t *testing.T) {
 				klog.SetOutput(os.Stderr)
 			}()
 
-			err := c.UntagResource(tt.instanceID, nil)
+			err := c.UntagResource(context.TODO(), tt.instanceID, nil)
 			assert.Equal(t, tt.err, err)
 			assert.Contains(t, logBuf.String(), tt.expectedMessage)
 		})
