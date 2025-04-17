@@ -1393,7 +1393,7 @@ func TestSubnetIDsinVPC(t *testing.T) {
 		return
 	}
 
-	expected := []*string{aws.String("subnet-a0000001"), aws.String("subnet-b0000001"), aws.String("subnet-c0000000")}
+	expected := []string{"subnet-a0000001", "subnet-b0000001", "subnet-c0000000"}
 	for _, s := range result {
 		if !contains(expected, s) {
 			t.Errorf("Unexpected subnet '%s' found", s)
@@ -1440,7 +1440,7 @@ func TestSubnetIDsinVPC(t *testing.T) {
 		return
 	}
 
-	expected = []*string{aws.String("subnet-c0000000"), aws.String("subnet-d0000001"), aws.String("subnet-d0000002")}
+	expected = []string{"subnet-c0000000", "subnet-d0000001", "subnet-d0000002"}
 	for _, s := range result {
 		if !contains(expected, s) {
 			t.Errorf("Unexpected subnet '%s' found", s)

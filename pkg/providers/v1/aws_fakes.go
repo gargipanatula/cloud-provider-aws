@@ -784,7 +784,7 @@ func instanceMatchesFilter(instance *ec2types.Instance, filter ec2types.Filter) 
 	}
 
 	if name == "instance-state-name" {
-		return contains(filter.Values, *instance.State.Name)
+		return contains(filter.Values, string(instance.State.Name))
 	}
 
 	if name == "tag-key" {
@@ -809,10 +809,10 @@ func instanceMatchesFilter(instance *ec2types.Instance, filter ec2types.Filter) 
 	panic("Unknown filter name: " + name)
 }
 
-func contains(haystack []*string, needle string) bool {
+func contains(haystack []string, needle string) bool {
 	for _, s := range haystack {
 		// (deliberately panic if s == nil)
-		if needle == *s {
+		if needle == s {
 			return true
 		}
 	}
