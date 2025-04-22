@@ -27,7 +27,7 @@ type EC2 interface {
 	DescribeAvailabilityZones(ctx context.Context, request *ec2.DescribeAvailabilityZonesInput) ([]ec2types.AvailabilityZone, error)
 
 	CreateTags(ctx context.Context, request *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
-	DeleteTags(ctx context.Context, input *ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error)
+	DeleteTags(ctx context.Context, request *ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error)
 
 	DescribeRouteTables(ctx context.Context, request *ec2.DescribeRouteTablesInput) ([]ec2types.RouteTable, error)
 	CreateRoute(ctx context.Context, request *ec2.CreateRouteInput) (*ec2.CreateRouteOutput, error)

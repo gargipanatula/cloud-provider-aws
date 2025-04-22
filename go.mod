@@ -27,6 +27,8 @@ require (
 
 require (
 	cel.dev/expr v0.19.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing v1.29.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.45.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
