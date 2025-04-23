@@ -20,13 +20,16 @@ import (
 	"fmt"
 	"sync"
 
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	elb "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	elb "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
+
 	// elbtypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	// elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
@@ -54,8 +57,13 @@ func newAWSSDKProvider(creds *credentials.Credentials, cfg *config.CloudConfig) 
 	}
 }
 
-func (p *awsSDKProvider) AddHandlers(regionName string, h *request.Handlers) {
-	h.Build.PushFrontNamed(request.NamedHandler{
+func (p *awsSDKProvider) AddHandlers(regionName string, h *request.Handlers, cfg awsv2.Config) {
+	
+	cfg.APIOptions = append(cfg.APIOptions, 
+		middleware.AddUserAgentKeyValue("kubernetes", version.Get().String()),
+	)
+
+	h.Build.PushFrontNamed(request.NamedHandler{ // migrated
 		Name: "k8s/user-agent",
 		Fn:   request.MakeAddToUserAgentHandler("kubernetes", version.Get().String()),
 	})
@@ -119,6 +127,10 @@ func (p *awsSDKProvider) Compute(regionName string) (iface.EC2, error) {
 		Region:      &regionName,
 		Credentials: p.creds,
 	}
+
+	// custom: if p.cfg.serviceoverride = true, add custom logic.
+	// otherwise, just use default
+
 	awsConfig = awsConfig.WithCredentialsChainVerboseErrors(true).
 		WithEndpointResolver(p.cfg.GetResolver())
 	sess, err := session.NewSessionWithOptions(session.Options{

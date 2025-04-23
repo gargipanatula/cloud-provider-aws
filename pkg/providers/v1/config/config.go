@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"k8s.io/klog/v2"
 )
@@ -185,10 +186,12 @@ func (cfg *CloudConfig) GetResolver() endpoints.ResolverFunc {
 		optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
 		return defaultResolver.EndpointFor(service, region, optFns...)
 	}
+	// endpoint resolver that gets endpoint for service and region, plus some opt functions
 	if len(cfg.ServiceOverride) == 0 {
 		return defaultResolverFn
 	}
 
+	// endpoint resolver that gets endpoint for extra params (for tests)
 	return func(service, region string,
 		optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
 		for _, override := range cfg.ServiceOverride {

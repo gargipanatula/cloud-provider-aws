@@ -103,6 +103,7 @@ type Controller struct {
 
 	rateLimitEnabled bool
 	workerCount      int
+	batchingEnabled  bool
 }
 
 // NewTaggingController creates a NewTaggingController object
@@ -115,8 +116,8 @@ func NewTaggingController(
 	resources []string,
 	rateLimit float64,
 	burstLimit int,
-	workerCount int) (*Controller, error) {
-
+	workerCount int,
+	batchingEnabled bool) (*Controller, error) {
 	awsCloud, ok := cloud.(*awsv1.Cloud)
 	if !ok {
 		err := fmt.Errorf("tagging controller does not support %v provider", cloud.ProviderName())
@@ -153,6 +154,7 @@ func NewTaggingController(
 		nodeMonitorPeriod: nodeMonitorPeriod,
 		rateLimitEnabled:  rateLimitEnabled,
 		workerCount:       workerCount,
+		batchingEnabled:   batchingEnabled,
 	}
 
 	// Use shared informer to listen to add/update/delete of nodes. Note that any nodes
@@ -317,10 +319,13 @@ func (tc *Controller) tagEc2Instance(ctx context.Context, node *v1.Node) error {
 		klog.Infof("Skip tagging node %s since it was already tagged earlier.", node.GetName())
 		return nil
 	}
-
+	var err error
 	instanceID, _ := awsv1.KubernetesInstanceID(node.Spec.ProviderID).MapToAWSInstanceID()
-
-	err := tc.cloud.TagResource(ctx, string(instanceID), tc.tags)
+	if tc.batchingEnabled {
+		err = tc.cloud.TagResourceBatch(context.TODO(), string(instanceID), tc.tags)
+	} else {
+		err = tc.cloud.TagResource(string(instanceID), tc.tags)
+	}
 
 	if err != nil {
 		if awsv1.IsAWSErrorInstanceNotFound(err) {
@@ -376,7 +381,12 @@ func (tc *Controller) untagNodeResources(ctx context.Context, node *taggingContr
 func (tc *Controller) untagEc2Instance(ctx context.Context, node *taggingControllerNode) error {
 	instanceID, _ := awsv1.KubernetesInstanceID(node.providerID).MapToAWSInstanceID()
 
-	err := tc.cloud.UntagResource(ctx, string(instanceID), tc.tags)
+	var err error
+	if tc.batchingEnabled {
+		err = tc.cloud.UntagResourceBatch(context.TODO(), string(instanceID), tc.tags)
+	} else {
+		err = tc.cloud.UntagResource(string(instanceID), tc.tags)
+	}
 
 	if err != nil {
 		klog.Errorf("Error in untagging EC2 instance %s for node %s, error: %v", instanceID, node.name, err)
