@@ -17,13 +17,17 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"math"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go"
+	
 	"k8s.io/klog/v2"
 )
 
@@ -47,18 +51,43 @@ func NewCrossRequestRetryDelay() *CrossRequestRetryDelay {
 	return c
 }
 
+type beforeSign struct{
+	delayer *CrossRequestRetryDelay
+	cfg 	aws.Config
+}
+
+func (l *beforeSign) ID() string {
+    return "k8s/delay-presign"
+}
+
+func (l *beforeSign) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
+    out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
+) {
+    err = l.delayer.BeforeSign(ctx, in, l)
+	// throw the error and set the request as non retryable
+	ctx = retry.SetRetryableError(ctx, &retry.Error{
+		Err:       fmt.Errorf("forced no-retry error"),
+		Retryable: false,
+	})
+    return next.HandleFinalize(ctx, in)
+}
+
 // BeforeSign is added to the Sign chain; called before each request
-func (c *CrossRequestRetryDelay) BeforeSign(r *request.Request) {
+func (c *CrossRequestRetryDelay) BeforeSign(ctx context.Context, in middleware.FinalizeInput, l *beforeSign) error {
 	now := time.Now()
 	delay := c.backoff.ComputeDelayForRequest(now)
+
+
+	// process wide backoff controller
 	if delay > 0 {
 		klog.Warningf("Inserting delay before AWS request (%s) to avoid RequestLimitExceeded: %s",
-			describeRequest(r), delay.String())
+			describeRequest(ctx, in), delay.String())
 
-		if sleepFn := r.Config.SleepDelay; sleepFn != nil {
-			// Support SleepDelay for backwards compatibility
-			sleepFn(delay)
-		} else if err := aws.SleepWithContext(r.Context(), delay); err != nil {
+		// took out sleep call because clients can't have custom sleep functions
+		// configured anymore, or added to the cfg when setting up a client, 
+		// so adding them to requests doesn't make sense
+		if err := sleepWithContext(ctx, delay); err != nil {
+			// just return the error
 			r.Error = awserr.New(request.CanceledErrorCode, "request context canceled", err)
 			r.Retryable = aws.Bool(false)
 			return
@@ -70,17 +99,18 @@ func (c *CrossRequestRetryDelay) BeforeSign(r *request.Request) {
 }
 
 // Return the operation name, for use in log messages and metrics
-func operationName(r *request.Request) string {
+func operationName(ctx context.Context) string {
 	name := "?"
-	if r.Operation != nil {
-		name = r.Operation.Name
-	}
+	if opName := middleware.GetOperationName(ctx); opName != "" {
+        name = opName
+    }
 	return name
 }
 
 // Return a user-friendly string describing the request, for use in log messages
-func describeRequest(r *request.Request) string {
-	service := r.ClientInfo.ServiceName
+func describeRequest(ctx context.Context, in middleware.FinalizeInput) string {
+	service := middleware.GetServiceID(ctx)
+    
 	return service + "::" + operationName(r)
 }
 
@@ -172,4 +202,18 @@ func (b *Backoff) ReportError() {
 	defer b.mutex.Unlock()
 
 	b.countErrorsRequestLimit += 1.0
+}
+
+func sleepWithContext(ctx context.Context, dur time.Duration) error {
+	t := time.NewTimer(dur)
+	defer t.Stop()
+
+	select {
+	case <-t.C:
+		break
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return nil
 }

@@ -17,11 +17,13 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	smithymiddleware "github.com/aws/smithy-go/middleware"
 	elb "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -57,21 +59,26 @@ func newAWSSDKProvider(creds *credentials.Credentials, cfg *config.CloudConfig) 
 	}
 }
 
-func (p *awsSDKProvider) AddHandlers(regionName string, h *request.Handlers, cfg awsv2.Config) {
+func (p *awsSDKProvider) AddHandlers(ctx context.Context, regionName string, h *request.Handlers, cfg awsv2.Config) {
 	
 	cfg.APIOptions = append(cfg.APIOptions, 
 		middleware.AddUserAgentKeyValue("kubernetes", version.Get().String()),
+		func(stack *smithymiddleware.Stack) error {
+            return stack.Finalize.Add(&awsLogger{}, smithymiddleware.Before)
+        },
 	)
 
-	h.Build.PushFrontNamed(request.NamedHandler{ // migrated
-		Name: "k8s/user-agent",
-		Fn:   request.MakeAddToUserAgentHandler("kubernetes", version.Get().String()),
-	})
+	cfg.Retryer = 
 
-	h.Sign.PushFrontNamed(request.NamedHandler{
-		Name: "k8s/logger",
-		Fn:   awsHandlerLogger,
-	})
+	// h.Build.PushFrontNamed(request.NamedHandler{ // migrated
+	// 	Name: "k8s/user-agent",
+	// 	Fn:   request.MakeAddToUserAgentHandler("kubernetes", version.Get().String()),
+	// })
+
+	// h.Sign.PushFrontNamed(request.NamedHandler{ // migrated
+	// 	Name: "k8s/logger",
+	// 	Fn:   awsHandlerLogger,
+	// })
 
 	delayer := p.getCrossRequestRetryDelay(regionName)
 	if delayer != nil {
@@ -122,7 +129,7 @@ func (p *awsSDKProvider) getCrossRequestRetryDelay(regionName string) *CrossRequ
 	return delayer
 }
 
-func (p *awsSDKProvider) Compute(regionName string) (iface.EC2, error) {
+func (p *awsSDKProvider) Compute(ctx context.Context, regionName string) (iface.EC2, error) {
 	awsConfig := &aws.Config{
 		Region:      &regionName,
 		Credentials: p.creds,
@@ -143,7 +150,7 @@ func (p *awsSDKProvider) Compute(regionName string) (iface.EC2, error) {
 	}
 	service := ec2.New(sess)
 
-	p.AddHandlers(regionName, &service.Handlers)
+	p.AddHandlers(ctx, regionName, &service.Handlers)
 
 	ec2 := &awsSdkEC2{
 		ec2: service,

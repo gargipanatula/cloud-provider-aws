@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
 // createTagsBatcher contains the batcher details
@@ -80,7 +80,7 @@ func execCreateTagsBatch(ec2api iface.EC2) batcher.BatchExecutor[ec2.CreateTagsI
 			Tags:      firstInput.Tags,
 		}
 		klog.Infof("Batched create tags %v", batchedInput)
-		output, err := ec2api.CreateTags(batchedInput)
+		output, err := ec2api.CreateTags(ctx, batchedInput)
 
 		if err != nil {
 			klog.Errorf("Error occurred trying to batch tag resources, trying individually, %v", err)
@@ -89,7 +89,7 @@ func execCreateTagsBatch(ec2api iface.EC2) batcher.BatchExecutor[ec2.CreateTagsI
 				wg.Add(1)
 				go func(input *ec2.CreateTagsInput) {
 					defer wg.Done()
-					out, err := ec2api.CreateTags(input)
+					out, err := ec2api.CreateTags(ctx, input)
 					results[idx] = batcher.Result[ec2.CreateTagsOutput]{Output: out, Err: err}
 
 				}(input)

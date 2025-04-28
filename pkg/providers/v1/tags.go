@@ -317,13 +317,13 @@ func (t *awsTagging) clusterID() string {
 
 // TagResource calls EC2 and tag the resource associated to resourceID
 // with the supplied tags
-func (c *Cloud) TagResource(resourceID string, tags map[string]string) error {
+func (c *Cloud) TagResource(ctx context.Context, resourceID string, tags map[string]string) error {
 	request := &ec2.CreateTagsInput{
-		Resources: []*string{aws.String(resourceID)},
+		Resources: []string{resourceID},
 		Tags:      buildAwsTags(tags),
 	}
 
-	output, err := c.ec2.CreateTags(request)
+	output, err := c.ec2.CreateTags(ctx, request)
 
 	if err != nil {
 		klog.Errorf("Error occurred trying to tag resources, %v", err)
@@ -339,7 +339,7 @@ func (c *Cloud) TagResource(resourceID string, tags map[string]string) error {
 // calls are batched based on batcher configuration.
 func (c *Cloud) TagResourceBatch(ctx context.Context, resourceID string, tags map[string]string) error {
 	request := &ec2.CreateTagsInput{
-		Resources: []*string{aws.String(resourceID)},
+		Resources: []string{resourceID},
 		Tags:      buildAwsTags(tags),
 	}
 
@@ -357,13 +357,13 @@ func (c *Cloud) TagResourceBatch(ctx context.Context, resourceID string, tags ma
 
 // UntagResource calls EC2 and tag the resource associated to resourceID
 // with the supplied tags
-func (c *Cloud) UntagResource(resourceID string, tags map[string]string) error {
+func (c *Cloud) UntagResource(ctx context.Context, resourceID string, tags map[string]string) error {
 	request := &ec2.DeleteTagsInput{
-		Resources: []*string{aws.String(resourceID)},
+		Resources: []string{resourceID},
 		Tags:      buildAwsTags(tags),
 	}
 
-	output, err := c.ec2.DeleteTags(request)
+	output, err := c.ec2.DeleteTags(ctx, request)
 
 	if err != nil {
 		// An instance not found should not fail the untagging workflow as it
@@ -385,7 +385,7 @@ func (c *Cloud) UntagResource(resourceID string, tags map[string]string) error {
 // calls are batched based on batcher configuration.
 func (c *Cloud) UntagResourceBatch(ctx context.Context, resourceID string, tags map[string]string) error {
 	request := &ec2.DeleteTagsInput{
-		Resources: []*string{aws.String(resourceID)},
+		Resources: []string{resourceID},
 		Tags:      buildAwsTags(tags),
 	}
 
@@ -407,8 +407,8 @@ func (c *Cloud) UntagResourceBatch(ctx context.Context, resourceID string, tags 
 	return nil
 }
 
-func buildAwsTags(tags map[string]string) []*ec2.Tag {
-	var awsTags []*ec2.Tag
+func buildAwsTags(tags map[string]string) []ec2types.Tag {
+	var awsTags []ec2types.Tag
 	for k, v := range tags {
 		newTag := ec2types.Tag{
 			Key:   aws.String(k),

@@ -591,7 +591,7 @@ func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.
 		return nil, err
 	}
 
-	ec2, err := awsServices.Compute(regionName)
+	ec2, err := awsServices.Compute(ctx, regionName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating AWS EC2 client: %v", err)
 	}

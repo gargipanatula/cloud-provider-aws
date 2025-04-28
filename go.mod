@@ -9,6 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.28.0
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.36.2
 	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.27.2
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing v1.29.3
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.45.2
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.23.0
 	github.com/onsi/gomega v1.36.2
@@ -33,8 +35,6 @@ require (
 
 require (
 	cel.dev/expr v0.19.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing v1.29.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.45.2 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/pprof v0.0.0-20241210010833-40e02aabc2ad // indirect
