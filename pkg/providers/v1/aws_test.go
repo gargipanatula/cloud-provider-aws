@@ -28,6 +28,8 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -2315,6 +2317,7 @@ func TestEnsureLoadBalancerHealthCheck(t *testing.T) {
 		elbDesc := &elbtypes.LoadBalancerDescription{LoadBalancerName: &lbName, HealthCheck: defaultHC}
 		err = c.ensureLoadBalancerHealthCheck(context.TODO(), elbDesc, protocol, port, path, map[string]string{})
 		assert.NoError(t, err)
+
 		// test HC with override
 		elbDesc = &elbtypes.LoadBalancerDescription{LoadBalancerName: &lbName, HealthCheck: &currentHC}
 		err = c.ensureLoadBalancerHealthCheck(context.TODO(), elbDesc, protocol, port, path, annotations)
@@ -2328,7 +2331,8 @@ func TestEnsureLoadBalancerHealthCheck(t *testing.T) {
 		expectedHC := *defaultHC
 		invalidThreshold := int32(1)
 		expectedHC.HealthyThreshold = &invalidThreshold
-		// require.Error(t, expectedHC.Validate()) // confirm test precondition
+		hcWrapper := healthCheckWrapper{ expectedHC }
+		require.Error(t, hcWrapper.Validate()) // confirm test precondition
 		annotations := map[string]string{ServiceAnnotationLoadBalancerHCTimeout: "1"}
 
 		// NOTE no call expectations are set on the ELB mock

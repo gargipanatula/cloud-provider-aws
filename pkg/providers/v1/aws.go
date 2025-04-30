@@ -2144,6 +2144,7 @@ func (c *Cloud) buildNLBHealthCheckConfiguration(svc *v1.Service) (healthCheckCo
 				hc.Port = strconv.Itoa(int(c.cfg.Global.ClusterServiceSharedLoadBalancerHealthProbePort))
 			}
 
+			
 			hc.Protocol = elbv2types.ProtocolEnumHttp
 		}
 	case config.ClusterServiceLoadBalancerHealthProbeModeServiceNodePort, "":

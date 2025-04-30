@@ -280,8 +280,8 @@ func (c *Cloud) ensureLoadBalancerv2(ctx context.Context, namespacedName types.N
 					targetGroupRecreated := false
 					targetGroup, ok := nodePortTargetGroup[nodePort]
 
-					if targetGroup != nil && (mapping.HealthCheckConfig.Protocol != targetGroup.HealthCheckProtocol) ||
-						(mapping.HealthCheckConfig.Interval != aws.ToInt32(targetGroup.HealthCheckIntervalSeconds)) {
+					if targetGroup != nil && ((mapping.HealthCheckConfig.Protocol != targetGroup.HealthCheckProtocol) ||
+						(mapping.HealthCheckConfig.Interval != aws.ToInt32(targetGroup.HealthCheckIntervalSeconds))) {
 						healthCheckModified = true
 					}
 
@@ -1381,10 +1381,49 @@ func (c *Cloud) getExpectedHealthCheck(target string, annotations map[string]str
 	if err != nil {
 		return nil, err
 	}
-	// if err = healthcheck.Validate(); err != nil {
-	// 	return nil, fmt.Errorf("some of the load balancer health check parameters are invalid: %v", err)
-	// }
+	hcWrapper := healthCheckWrapper{ *healthcheck }
+	if err = hcWrapper.Validate(); err != nil {
+		return nil, fmt.Errorf("some of the load balancer health check parameters are invalid: %v", err)
+	}
 	return healthcheck, nil
+}
+
+type healthCheckWrapper struct {
+	elbtypes.HealthCheck
+}
+
+func (s healthCheckWrapper) Validate() error {
+	// var invalidParams
+	// invalidParams := request.ErrInvalidParams{Context: "HealthCheck"}
+	if s.HealthyThreshold == nil {
+		return errors.New("missing field")
+	}
+	if s.HealthyThreshold != nil && *s.HealthyThreshold < 2 {
+		return errors.New("missing field")
+	}
+	if s.Interval == nil {
+		return errors.New("missing field")
+	}
+	if s.Interval != nil && *s.Interval < 5 {
+		return errors.New("missing field")
+	}
+	if s.Target == nil {
+		return errors.New("missing field")
+	}
+	if s.Timeout == nil {
+		return errors.New("missing field")
+	}
+	if s.Timeout != nil && *s.Timeout < 2 {
+		return errors.New("missing field")
+	}
+	if s.UnhealthyThreshold == nil {
+		return errors.New("missing field")
+	}
+	if s.UnhealthyThreshold != nil && *s.UnhealthyThreshold < 2 {
+		return errors.New("missing field")
+	}
+
+	return nil
 }
 
 // Makes sure that the health check for an ELB matches the configured health check node port
@@ -1423,10 +1462,10 @@ func (c *Cloud) ensureLoadBalancerHealthCheck(ctx context.Context, loadBalancer 
 	// comparing attributes 1 by 1 to avoid breakage in case a new field is
 	// added to the HC which breaks the equality
 	if aws.ToString(expected.Target) == aws.ToString(actual.Target) &&
-		expected.HealthyThreshold == actual.HealthyThreshold &&
-		expected.UnhealthyThreshold == actual.UnhealthyThreshold &&
-		expected.Interval == actual.Interval &&
-		expected.Timeout == actual.Timeout {
+		aws.ToInt32(expected.HealthyThreshold) == aws.ToInt32(actual.HealthyThreshold) &&
+		aws.ToInt32(expected.UnhealthyThreshold) == aws.ToInt32(actual.UnhealthyThreshold) &&
+		aws.ToInt32(expected.Interval) == aws.ToInt32(actual.Interval) &&
+		aws.ToInt32(expected.Timeout) == aws.ToInt32(actual.Timeout) {
 		return nil
 	}
 
