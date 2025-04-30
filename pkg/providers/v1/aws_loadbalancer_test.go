@@ -218,7 +218,7 @@ func TestSyncElbListeners(t *testing.T) {
 		loadBalancerName     string
 		listeners            []elbtypes.Listener
 		listenerDescriptions []elbtypes.ListenerDescription
-		toCreate             []*elbtypes.Listener
+		toCreate             []elbtypes.Listener
 		toDelete             []*int64
 	}{
 		{
@@ -236,7 +236,7 @@ func TestSyncElbListeners(t *testing.T) {
 			toDelete: []*int64{
 				aws.Int64(80),
 			},
-			toCreate: []*elbtypes.Listener{
+			toCreate: []elbtypes.Listener{
 				{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP"), SSLCertificateId: aws.String("abc-123")},
 				{InstancePort: aws.Int32(80), InstanceProtocol: aws.String("TCP"), LoadBalancerPort: *aws.Int32(80), Protocol: aws.String("TCP"), SSLCertificateId: aws.String("def-456")},
 			},
@@ -251,7 +251,7 @@ func TestSyncElbListeners(t *testing.T) {
 			listenerDescriptions: []elbtypes.ListenerDescription{
 				{Listener: &elbtypes.Listener{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP"), SSLCertificateId: aws.String("abc-123")}},
 			},
-			toCreate: []*elbtypes.Listener{
+			toCreate: []elbtypes.Listener{
 				{InstancePort: aws.Int32(80), InstanceProtocol: aws.String("TCP"), LoadBalancerPort: int32(80), Protocol: aws.String("TCP"), SSLCertificateId: aws.String("def-456")},
 			},
 			toDelete: []*int64{},
@@ -269,7 +269,7 @@ func TestSyncElbListeners(t *testing.T) {
 			toDelete: []*int64{
 				aws.Int64(80),
 			},
-			toCreate: []*elbtypes.Listener{},
+			toCreate: []elbtypes.Listener{},
 		},
 		{
 			name:             "nil actual listener",
@@ -284,7 +284,7 @@ func TestSyncElbListeners(t *testing.T) {
 			toDelete: []*int64{
 				aws.Int64(443),
 			},
-			toCreate: []*elbtypes.Listener{
+			toCreate: []elbtypes.Listener{
 				{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP")},
 			},
 		},

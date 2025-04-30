@@ -177,8 +177,8 @@ func (p *awsSDKProvider) Metadata() (config.EC2Metadata, error) {
 		return nil, fmt.Errorf("unable to initialize AWS config: %v", err)
 	}
 	p.addAPILoggingHandlers(cfg)
-	client := imds.New(imds.Options{})
-	getInstanceIdentityDocumentOutput, err := client.GetInstanceIdentityDocument(context.Background(), &imds.GetInstanceIdentityDocumentInput{})
+	imdsClient := imds.New(imds.Options{ClientEnableState: imds.ClientEnabled})
+	getInstanceIdentityDocumentOutput, err := imdsClient.GetInstanceIdentityDocument(context.Background(), &imds.GetInstanceIdentityDocumentInput{})
 	identity := getInstanceIdentityDocumentOutput.InstanceIdentityDocument
 	// identity, err := client.GetInstanceIdentityDocument()
 	if err == nil {
@@ -192,7 +192,7 @@ func (p *awsSDKProvider) Metadata() (config.EC2Metadata, error) {
 			"account-id", identity.AccountID,
 			"image-id", identity.ImageID)
 	}
-	return client, nil
+	return imdsClient, nil
 }
 
 func (p *awsSDKProvider) KeyManagement(ctx context.Context, regionName string) (KMS, error) {

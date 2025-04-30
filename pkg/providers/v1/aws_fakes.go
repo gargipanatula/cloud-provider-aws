@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	// elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"k8s.io/klog/v2"
 
 	"k8s.io/cloud-provider-aws/pkg/providers/v1/config"
@@ -447,7 +449,8 @@ type FakeMetadata struct {
 }
 
 // GetMetadata returns fake EC2 metadata for testing
-func (m *FakeMetadata) GetMetadata(key string) (string, error) {
+func (m *FakeMetadata) GetMetadata(ctx context.Context, params *imds.GetMetadataInput, optFns ...func(*imds.Options)) (*imds.GetMetadataOutput, error) {
+	key := params.Path
 	networkInterfacesPrefix := "network/interfaces/macs/"
 	i := m.aws.selfInstance
 	if key == "placement/availability-zone" {
@@ -455,17 +458,17 @@ func (m *FakeMetadata) GetMetadata(key string) (string, error) {
 		if i.Placement != nil {
 			az = aws.ToString(i.Placement.AvailabilityZone)
 		}
-		return az, nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(az))}, nil
 	} else if key == "instance-id" {
-		return aws.ToString(i.InstanceId), nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(*i.InstanceId))}, nil
 	} else if key == "local-hostname" {
-		return aws.ToString(i.PrivateDnsName), nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(*i.PrivateDnsName))}, nil
 	} else if key == "public-hostname" {
-		return aws.ToString(i.PublicDnsName), nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(*i.PublicDnsName))}, nil
 	} else if key == "local-ipv4" {
-		return aws.ToString(i.PrivateIpAddress), nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(*i.PrivateIpAddress))}, nil
 	} else if key == "public-ipv4" {
-		return aws.ToString(i.PublicIpAddress), nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(*i.PublicIpAddress))}, nil
 	} else if strings.HasPrefix(key, networkInterfacesPrefix) {
 		if key == networkInterfacesPrefix {
 			// Return the MACs sorted lexically rather than in device-number
@@ -474,7 +477,8 @@ func (m *FakeMetadata) GetMetadata(key string) (string, error) {
 			macs := make([]string, len(m.aws.networkInterfacesMacs))
 			copy(macs, m.aws.networkInterfacesMacs)
 			sort.Strings(macs)
-			return strings.Join(macs, "/\n") + "/\n", nil
+			concatMacs := strings.Join(macs, "/\n") + "/\n"
+			return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(concatMacs))}, nil
 		}
 
 		keySplit := strings.Split(key, "/")
@@ -482,7 +486,7 @@ func (m *FakeMetadata) GetMetadata(key string) (string, error) {
 		if len(keySplit) == 5 && keySplit[4] == "vpc-id" {
 			for i, macElem := range m.aws.networkInterfacesMacs {
 				if macParam == macElem {
-					return m.aws.networkInterfacesVpcIDs[i], nil
+					return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(m.aws.networkInterfacesVpcIDs[i]))}, nil
 				}
 			}
 		}
@@ -494,27 +498,27 @@ func (m *FakeMetadata) GetMetadata(key string) (string, error) {
 						// Introduce an artificial gap, just to test eg: [eth0, eth2]
 						n++
 					}
-					return fmt.Sprintf("%d\n", n), nil
+					return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(fmt.Sprintf("%d\n", n)))}, nil
 				}
 			}
 		}
 		if len(keySplit) == 5 && keySplit[4] == "local-ipv4s" {
 			for i, macElem := range m.aws.networkInterfacesMacs {
 				if macParam == macElem {
-					return strings.Join(m.aws.networkInterfacesPrivateIPs[i], "/\n"), nil
+					return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(strings.Join(m.aws.networkInterfacesPrivateIPs[i], "/\n")))}, nil
 				}
 			}
 		}
 
-		return "", nil
+		return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(""))}, nil
 	}
 
-	return "", nil
+	return &imds.GetMetadataOutput{Content: io.NopCloser(strings.NewReader(""))}, nil
 }
 
 // Region returns AWS region
-func (m *FakeMetadata) Region() (string, error) {
-	return m.aws.region, nil
+func (m *FakeMetadata) GetRegion(ctx context.Context, params *imds.GetRegionInput, optFns ...func(*imds.Options)) (*imds.GetRegionOutput, error) {
+	return &imds.GetRegionOutput{Region: m.aws.region}, nil
 }
 
 // FakeELB is a fake ELB client used for testing

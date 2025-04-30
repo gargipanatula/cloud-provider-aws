@@ -29,14 +29,13 @@ import (
 	"time"
 
 	stscredsv2 "github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go/aws"
+
 	// awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	// "github.com/aws/aws-sdk-go/aws/credentials"
 	// "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	elb "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
@@ -44,6 +43,9 @@ import (
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"gopkg.in/gcfg.v1"
 
@@ -477,7 +479,7 @@ func init() {
 			return nil, fmt.Errorf("error creating AWS metadata client: %q", err)
 		}
 
-		regionName, err := getRegionFromMetadata(*cfg, metadata)
+		regionName, err := getRegionFromMetadata(ctx, *cfg, metadata)
 		if err != nil {
 			return nil, err
 		}
@@ -571,7 +573,7 @@ func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.
 		return nil, fmt.Errorf("error creating AWS metadata client: %q", err)
 	}
 
-	regionName, err := getRegionFromMetadata(cfg, metadata)
+	regionName, err := getRegionFromMetadata(ctx, cfg, metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -1087,11 +1089,17 @@ func (c *Cloud) buildSelfAWSInstance(ctx context.Context) (*awsInstance, error) 
 	if c.selfAWSInstance != nil {
 		panic("do not call buildSelfAWSInstance directly")
 	}
-	instanceID, err := c.metadata.GetMetadata("instance-id")
+	instanceMetadata, err := c.metadata.GetMetadata(ctx, &imds.GetMetadataInput{Path: "instance-id"})
 	if err != nil {
-		return nil, fmt.Errorf("error fetching instance-id from ec2 metadata service: %q", err)
+		return nil, fmt.Errorf("error fetching instance-id metadata from ec2 imds service: %q", err)
 	}
-
+	defer instanceMetadata.Content.Close()
+	body, err := io.ReadAll(instanceMetadata.Content)
+	if err != nil {
+        return nil, fmt.Errorf("error extracting instance-id from ec2 imds service: %q", err)
+    }
+	instanceID := string(body)
+	
 	// We want to fetch the hostname via the EC2 metadata service
 	// (`GetMetadata("local-hostname")`): But see #11543 - we need to use
 	// the EC2 API to get the privateDnsName in case of a private DNS zone
@@ -1181,11 +1189,17 @@ func (c *Cloud) describeLoadBalancerv2(ctx context.Context, name string) (*elbv2
 }
 
 // Retrieves instance's vpc id from metadata
-func (c *Cloud) findVPCID() (string, error) {
-	macs, err := c.metadata.GetMetadata("network/interfaces/macs/")
+func (c *Cloud) findVPCID(ctx context.Context) (string, error) {
+	macsMetadata, err := c.metadata.GetMetadata(ctx, &imds.GetMetadataInput{Path: "network/interfaces/macs/"})
 	if err != nil {
 		return "", fmt.Errorf("could not list interfaces of the instance: %q", err)
 	}
+	defer macsMetadata.Content.Close()
+	body, err := io.ReadAll(macsMetadata.Content)
+	if err != nil {
+        return "", fmt.Errorf("error extracting interfaces from ec2 imds service: %q", err)
+    }
+	macs := string(body)
 
 	// loop over interfaces, first vpc id returned wins
 	for _, macPath := range strings.Split(macs, "\n") {
@@ -1193,7 +1207,17 @@ func (c *Cloud) findVPCID() (string, error) {
 			continue
 		}
 		url := fmt.Sprintf("network/interfaces/macs/%svpc-id", macPath)
-		vpcID, err := c.metadata.GetMetadata(url)
+		
+		vpcIDMetadata, err := c.metadata.GetMetadata(ctx, &imds.GetMetadataInput{Path: url})
+		if err != nil {
+			return "", fmt.Errorf("error fetching vpc metadata from ec2 imds service: %q", err)
+		}
+		defer vpcIDMetadata.Content.Close()
+		body, err := io.ReadAll(vpcIDMetadata.Content)
+		if err != nil {
+			return "", fmt.Errorf("error extracting instance-id from ec2 imds service: %q", err)
+		}
+		vpcID := string(body)
 		if err != nil {
 			continue
 		}
@@ -3405,7 +3429,7 @@ func checkProtocol(port v1.ServicePort, annotations map[string]string) error {
 	return fmt.Errorf("Protocol %s not supported by LoadBalancer", port.Protocol)
 }
 
-func getRegionFromMetadata(cfg config.CloudConfig, metadata config.EC2Metadata) (string, error) {
+func getRegionFromMetadata(ctx context.Context, cfg config.CloudConfig, metadata config.EC2Metadata) (string, error) {
 	// For backwards compatibility reasons, keeping this check to avoid breaking possible
 	// cases where Zone was set to override the region configuration. Otherwise, fall back
 	// to getting region the standard way.
@@ -3416,5 +3440,5 @@ func getRegionFromMetadata(cfg config.CloudConfig, metadata config.EC2Metadata) 
 		return azToRegion(zone)
 	}
 
-	return cfg.GetRegion(metadata)
+	return cfg.GetRegion(ctx, metadata)
 }

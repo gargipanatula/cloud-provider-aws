@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 
 	"k8s.io/klog/v2"
@@ -119,25 +120,25 @@ type CloudConfig struct {
 // EC2Metadata is an abstraction over the AWS metadata service.
 type EC2Metadata interface {
 	// Query the EC2 metadata service (used to discover instance-id etc)
-	GetMetadata(path string) (string, error)
-	Region() (string, error)
+	GetMetadata(ctx context.Context, params *imds.GetMetadataInput, optFns ...func(*imds.Options)) (*imds.GetMetadataOutput, error)
+	GetRegion(ctx context.Context, params *imds.GetRegionInput, optFns ...func(*imds.Options),) (*imds.GetRegionOutput, error)
 }
 
 // GetRegion returns the AWS region from the config, if set, or gets it from the metadata
 // service if unset and sets in config
-func (cfg *CloudConfig) GetRegion(metadata EC2Metadata) (string, error) {
+func (cfg *CloudConfig) GetRegion(ctx context.Context, metadata EC2Metadata) (string, error) {
 	if cfg.Global.Region != "" {
 		return cfg.Global.Region, nil
 	}
 
 	klog.Info("Loading region from metadata service")
-	region, err := metadata.Region()
+	region, err := metadata.GetRegion(ctx, &imds.GetRegionInput{})
 	if err != nil {
 		return "", err
 	}
 
-	cfg.Global.Region = region
-	return region, nil
+	cfg.Global.Region = region.Region
+	return region.Region, nil
 }
 
 // ValidateOverrides ensures overrides are correct

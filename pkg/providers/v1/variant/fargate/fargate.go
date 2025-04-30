@@ -150,7 +150,7 @@ func (f *fargateVariant) DescribeNetworkInterfaces(ctx context.Context, ec2API i
 	}
 	if len(eni.NetworkInterfaces) != 1 {
 		// This should not be possible - ids should be unique
-		return nil, fmt.Errorf("multiple interfaces found with same id %q", eni.NetworkInterfaces)
+		return nil, fmt.Errorf("multiple interfaces found with same id %v", eni.NetworkInterfaces)
 	}
 	return &eni.NetworkInterfaces[0], nil
 }

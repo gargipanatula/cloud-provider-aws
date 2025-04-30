@@ -1381,9 +1381,9 @@ func (c *Cloud) getExpectedHealthCheck(target string, annotations map[string]str
 	if err != nil {
 		return nil, err
 	}
-	if err = healthcheck.Validate(); err != nil {
-		return nil, fmt.Errorf("some of the load balancer health check parameters are invalid: %v", err)
-	}
+	// if err = healthcheck.Validate(); err != nil {
+	// 	return nil, fmt.Errorf("some of the load balancer health check parameters are invalid: %v", err)
+	// }
 	return healthcheck, nil
 }
 

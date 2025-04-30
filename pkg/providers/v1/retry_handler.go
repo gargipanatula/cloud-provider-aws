@@ -19,7 +19,6 @@ package aws
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"strings"
 	"sync"
@@ -28,7 +27,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
-	// "github.com/aws/aws-sdk-go-v2/aws/retry"
 	
 	"k8s.io/klog/v2"
 )
@@ -72,7 +70,7 @@ func (l *delayPrerequest) HandleFinalize(ctx context.Context, in middleware.Fina
 			describeRequest(ctx), delay.String())
 
 		if err := sleepWithContext(ctx, delay); err != nil {
-			return middleware.FinalizeOutput{}, middleware.Metadata{}, fmt.Errorf(NON_RETRYABLE_ERROR)
+			return middleware.FinalizeOutput{}, middleware.Metadata{}, errors.New(NON_RETRYABLE_ERROR)
 		}
 	}
 
