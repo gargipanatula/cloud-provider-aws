@@ -92,22 +92,25 @@ func (m *MockedFakeEC2) expectDescribeSecurityGroupsByFilter(clusterID, filterNa
 	}}).Return([]*ec2types.SecurityGroup{{Tags: tags}})
 }
 
-func (m *MockedFakeEC2) DescribeSecurityGroups(ctx context.Context, request *ec2.DescribeSecurityGroupsInput) ([]ec2types.SecurityGroup, error) {
+func (m *MockedFakeEC2) DescribeSecurityGroups(ctx context.Context, request *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options)) ([]ec2types.SecurityGroup, error) {
 	args := m.Called(request)
 	return args.Get(0).([]ec2types.SecurityGroup), nil
 }
 
+// func (m *MockedFakeEC2) DescribeNetworkInterfaces(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
+
+// }
 type MockedFakeELB struct {
 	*FakeELB
 	mock.Mock
 }
 
-func (m *MockedFakeELB) DescribeLoadBalancers(ctx context.Context, input *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
+func (m *MockedFakeELB) DescribeLoadBalancers(ctx context.Context, input *elb.DescribeLoadBalancersInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancersOutput, error) {
 	args := m.Called(input)
 	return args.Get(0).(*elb.DescribeLoadBalancersOutput), nil
 }
 
-func (m *MockedFakeELB) expectDescribeLoadBalancers(ctx context.Context, loadBalancerName string) {
+func (m *MockedFakeELB) expectDescribeLoadBalancers(ctx context.Context, loadBalancerName string, optFns ...func(*elb.Options)) {
 	m.On("DescribeLoadBalancers", &elb.DescribeLoadBalancersInput{LoadBalancerNames: []string{loadBalancerName}}).Return(&elb.DescribeLoadBalancersOutput{
 		LoadBalancerDescriptions: []elbtypes.LoadBalancerDescription{
 			{
@@ -117,12 +120,12 @@ func (m *MockedFakeELB) expectDescribeLoadBalancers(ctx context.Context, loadBal
 	})
 }
 
-func (m *MockedFakeELB) AddTags(ctx context.Context, input *elb.AddTagsInput) (*elb.AddTagsOutput, error) {
+func (m *MockedFakeELB) AddTags(ctx context.Context, input *elb.AddTagsInput, optFns ...func(*elb.Options)) (*elb.AddTagsOutput, error) {
 	args := m.Called(input)
 	return args.Get(0).(*elb.AddTagsOutput), nil
 }
 
-func (m *MockedFakeELB) ConfigureHealthCheck(ctx context.Context, input *elb.ConfigureHealthCheckInput) (*elb.ConfigureHealthCheckOutput, error) {
+func (m *MockedFakeELB) ConfigureHealthCheck(ctx context.Context, input *elb.ConfigureHealthCheckInput, optFns ...func(*elb.Options)) (*elb.ConfigureHealthCheckOutput, error) {
 	args := m.Called(input)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -130,7 +133,7 @@ func (m *MockedFakeELB) ConfigureHealthCheck(ctx context.Context, input *elb.Con
 	return args.Get(0).(*elb.ConfigureHealthCheckOutput), args.Error(1)
 }
 
-func (m *MockedFakeELB) expectConfigureHealthCheck(ctx context.Context, loadBalancerName *string, expectedHC *elbtypes.HealthCheck, returnErr error) {
+func (m *MockedFakeELB) expectConfigureHealthCheck(ctx context.Context, loadBalancerName *string, expectedHC *elbtypes.HealthCheck, returnErr error, optFns ...func(*elb.Options)) {
 	expected := &elb.ConfigureHealthCheckInput{HealthCheck: expectedHC, LoadBalancerName: loadBalancerName}
 	call := m.On("ConfigureHealthCheck", expected)
 	if returnErr != nil {
@@ -2540,7 +2543,7 @@ type MockedFakeELBV2 struct {
 	RegisteredInstances    map[string][]string // value is list of instance IDs
 }
 
-func (m *MockedFakeELBV2) AddTags(ctx context.Context, request *elbv2.AddTagsInput) (*elbv2.AddTagsOutput, error) {
+func (m *MockedFakeELBV2) AddTags(ctx context.Context, request *elbv2.AddTagsInput, optFns ...func(*elbv2.Options)) (*elbv2.AddTagsOutput, error) {
 	for _, arn := range request.ResourceArns {
 		for _, tag := range request.Tags {
 			m.Tags[arn] = append(m.Tags[arn], tag)
@@ -2550,7 +2553,7 @@ func (m *MockedFakeELBV2) AddTags(ctx context.Context, request *elbv2.AddTagsInp
 	return &elbv2.AddTagsOutput{}, nil
 }
 
-func (m *MockedFakeELBV2) CreateLoadBalancer(ctx context.Context, request *elbv2.CreateLoadBalancerInput) (*elbv2.CreateLoadBalancerOutput, error) {
+func (m *MockedFakeELBV2) CreateLoadBalancer(ctx context.Context, request *elbv2.CreateLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateLoadBalancerOutput, error) {
 	accountID := 123456789
 	arn := fmt.Sprintf("arn:aws:elasticloadbalancing:us-west-2:%d:loadbalancer/net/%x/%x",
 		accountID,
@@ -2576,7 +2579,7 @@ func (m *MockedFakeELBV2) CreateLoadBalancer(ctx context.Context, request *elbv2
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DescribeLoadBalancers(ctx context.Context, request *elbv2.DescribeLoadBalancersInput) (*elbv2.DescribeLoadBalancersOutput, error) {
+func (m *MockedFakeELBV2) DescribeLoadBalancers(ctx context.Context, request *elbv2.DescribeLoadBalancersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancersOutput, error) {
 	findMeNames := make(map[string]bool)
 	for _, name := range request.Names {
 		findMeNames[name] = true
@@ -2598,9 +2601,10 @@ func (m *MockedFakeELBV2) DescribeLoadBalancers(ctx context.Context, request *el
 			delete(findMeARNs, aws.StringValue(lb.LoadBalancerArn))
 		}
 	}
-
 	if len(findMeNames) > 0 || len(findMeARNs) > 0 {
-		return nil, awserr.New(elbv2.ErrCodeLoadBalancerNotFoundException, "not found", nil)
+		return nil, &elbv2types.LoadBalancerNotFoundException{
+			Message: aws.String("not found"),
+		}
 	}
 
 	return &elbv2.DescribeLoadBalancersOutput{
@@ -2608,11 +2612,11 @@ func (m *MockedFakeELBV2) DescribeLoadBalancers(ctx context.Context, request *el
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DeleteLoadBalancer(ctx context.Context, request *elbv2.DeleteLoadBalancerInput) (*elbv2.DeleteLoadBalancerOutput, error) {
+func (m *MockedFakeELBV2) DeleteLoadBalancer(ctx context.Context, request *elbv2.DeleteLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
-func (m *MockedFakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, request *elbv2.ModifyLoadBalancerAttributesInput) (*elbv2.ModifyLoadBalancerAttributesOutput, error) {
+func (m *MockedFakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, request *elbv2.ModifyLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyLoadBalancerAttributesOutput, error) {
 	attrMap, present := m.LoadBalancerAttributes[aws.StringValue(request.LoadBalancerArn)]
 
 	if !present {
@@ -2629,7 +2633,7 @@ func (m *MockedFakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, requ
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DescribeLoadBalancerAttributes(ctx context.Context, request *elbv2.DescribeLoadBalancerAttributesInput) (*elbv2.DescribeLoadBalancerAttributesOutput, error) {
+func (m *MockedFakeELBV2) DescribeLoadBalancerAttributes(ctx context.Context, request *elbv2.DescribeLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancerAttributesOutput, error) {
 	attrs := []elbv2types.LoadBalancerAttribute{}
 
 	if lbAttrs, present := m.LoadBalancerAttributes[aws.StringValue(request.LoadBalancerArn)]; present {
@@ -2646,7 +2650,7 @@ func (m *MockedFakeELBV2) DescribeLoadBalancerAttributes(ctx context.Context, re
 	}, nil
 }
 
-func (m *MockedFakeELBV2) CreateTargetGroup(ctx context.Context, request *elbv2.CreateTargetGroupInput) (*elbv2.CreateTargetGroupOutput, error) {
+func (m *MockedFakeELBV2) CreateTargetGroup(ctx context.Context, request *elbv2.CreateTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateTargetGroupOutput, error) {
 	accountID := 123456789
 	arn := fmt.Sprintf("arn:aws:elasticloadbalancing:us-west-2:%d:targetgroup/%x/%x",
 		accountID,
@@ -2674,7 +2678,7 @@ func (m *MockedFakeELBV2) CreateTargetGroup(ctx context.Context, request *elbv2.
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DescribeTargetGroups(ctx context.Context, request *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error) {
+func (m *MockedFakeELBV2) DescribeTargetGroups(ctx context.Context, request *elbv2.DescribeTargetGroupsInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupsOutput, error) {
 	var targetGroups []elbv2types.TargetGroup
 
 	if request.LoadBalancerArn != nil {
@@ -2719,7 +2723,7 @@ func (m *MockedFakeELBV2) DescribeTargetGroups(ctx context.Context, request *elb
 	}, nil
 }
 
-func (m *MockedFakeELBV2) ModifyTargetGroup(ctx context.Context, request *elbv2.ModifyTargetGroupInput) (*elbv2.ModifyTargetGroupOutput, error) {
+func (m *MockedFakeELBV2) ModifyTargetGroup(ctx context.Context, request *elbv2.ModifyTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyTargetGroupOutput, error) {
 	var matchingTargetGroup *elbv2types.TargetGroup
 	dirtyGroups := []elbv2types.TargetGroup{}
 
@@ -2767,7 +2771,7 @@ func (m *MockedFakeELBV2) ModifyTargetGroup(ctx context.Context, request *elbv2.
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DeleteTargetGroup(ctx context.Context, request *elbv2.DeleteTargetGroupInput) (*elbv2.DeleteTargetGroupOutput, error) {
+func (m *MockedFakeELBV2) DeleteTargetGroup(ctx context.Context, request *elbv2.DeleteTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteTargetGroupOutput, error) {
 	newTargetGroups := []elbv2types.TargetGroup{}
 
 	for _, tg := range m.TargetGroups {
@@ -2783,7 +2787,7 @@ func (m *MockedFakeELBV2) DeleteTargetGroup(ctx context.Context, request *elbv2.
 	return &elbv2.DeleteTargetGroupOutput{}, nil
 }
 
-func (m *MockedFakeELBV2) DescribeTargetHealth(ctx context.Context, request *elbv2.DescribeTargetHealthInput) (*elbv2.DescribeTargetHealthOutput, error) {
+func (m *MockedFakeELBV2) DescribeTargetHealth(ctx context.Context, request *elbv2.DescribeTargetHealthInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetHealthOutput, error) {
 	healthDescriptions := []elbv2types.TargetHealthDescription{}
 
 	var matchingTargetGroup elbv2types.TargetGroup
@@ -2815,15 +2819,15 @@ func (m *MockedFakeELBV2) DescribeTargetHealth(ctx context.Context, request *elb
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DescribeTargetGroupAttributes(ctx context.Context, request *elbv2.DescribeTargetGroupAttributesInput) (*elbv2.DescribeTargetGroupAttributesOutput, error) {
+func (m *MockedFakeELBV2) DescribeTargetGroupAttributes(ctx context.Context, request *elbv2.DescribeTargetGroupAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupAttributesOutput, error) {
 	panic("Not implemented")
 }
 
-func (m *MockedFakeELBV2) ModifyTargetGroupAttributes(ctx context.Context, request *elbv2.ModifyTargetGroupAttributesInput) (*elbv2.ModifyTargetGroupAttributesOutput, error) {
+func (m *MockedFakeELBV2) ModifyTargetGroupAttributes(ctx context.Context, request *elbv2.ModifyTargetGroupAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyTargetGroupAttributesOutput, error) {
 	panic("Not implemented")
 }
 
-func (m *MockedFakeELBV2) RegisterTargets(ctx context.Context, request *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error) {
+func (m *MockedFakeELBV2) RegisterTargets(ctx context.Context, request *elbv2.RegisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.RegisterTargetsOutput, error) {
 	arn := aws.StringValue(request.TargetGroupArn)
 	alreadyExists := make(map[string]bool)
 	for _, targetID := range m.RegisteredInstances[arn] {
@@ -2837,7 +2841,7 @@ func (m *MockedFakeELBV2) RegisterTargets(ctx context.Context, request *elbv2.Re
 	return &elbv2.RegisterTargetsOutput{}, nil
 }
 
-func (m *MockedFakeELBV2) DeregisterTargets(ctx context.Context, request *elbv2.DeregisterTargetsInput) (*elbv2.DeregisterTargetsOutput, error) {
+func (m *MockedFakeELBV2) DeregisterTargets(ctx context.Context, request *elbv2.DeregisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.DeregisterTargetsOutput, error) {
 	removeMe := make(map[string]bool)
 
 	for _, target := range request.Targets {
@@ -2854,7 +2858,7 @@ func (m *MockedFakeELBV2) DeregisterTargets(ctx context.Context, request *elbv2.
 	return &elbv2.DeregisterTargetsOutput{}, nil
 }
 
-func (m *MockedFakeELBV2) CreateListener(ctx context.Context, request *elbv2.CreateListenerInput) (*elbv2.CreateListenerOutput, error) {
+func (m *MockedFakeELBV2) CreateListener(ctx context.Context, request *elbv2.CreateListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateListenerOutput, error) {
 	accountID := 123456789
 	arn := fmt.Sprintf("arn:aws:elasticloadbalancing:us-west-2:%d:listener/net/%x/%x/%x",
 		accountID,
@@ -2886,7 +2890,7 @@ func (m *MockedFakeELBV2) CreateListener(ctx context.Context, request *elbv2.Cre
 	}, nil
 }
 
-func (m *MockedFakeELBV2) DescribeListeners(ctx context.Context, request *elbv2.DescribeListenersInput) (*elbv2.DescribeListenersOutput, error) {
+func (m *MockedFakeELBV2) DescribeListeners(ctx context.Context, request *elbv2.DescribeListenersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeListenersOutput, error) {
 	if len(request.ListenerArns) == 0 && request.LoadBalancerArn == nil {
 		return &elbv2.DescribeListenersOutput{
 			Listeners: m.Listeners,
@@ -2907,11 +2911,11 @@ func (m *MockedFakeELBV2) DescribeListeners(ctx context.Context, request *elbv2.
 	panic("Not implemented")
 }
 
-func (m *MockedFakeELBV2) DeleteListener(ctx context.Context, request *elbv2.DeleteListenerInput) (*elbv2.DeleteListenerOutput, error) {
+func (m *MockedFakeELBV2) DeleteListener(ctx context.Context, request *elbv2.DeleteListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteListenerOutput, error) {
 	panic("Not implemented")
 }
 
-func (m *MockedFakeELBV2) ModifyListener(ctx context.Context, request *elbv2.ModifyListenerInput) (*elbv2.ModifyListenerOutput, error) {
+func (m *MockedFakeELBV2) ModifyListener(ctx context.Context, request *elbv2.ModifyListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyListenerOutput, error) {
 	modifiedListeners := []elbv2types.Listener{}
 
 	for _, listener := range m.Listeners {
@@ -2974,9 +2978,6 @@ func (m *MockedFakeELBV2) ModifyListener(ctx context.Context, request *elbv2.Mod
 	}, nil
 }
 
-func (m *MockedFakeELBV2) WaitUntilLoadBalancersDeleted(ctx context.Context, request *elbv2.DescribeLoadBalancersInput) error {
-	panic("Not implemented")
-}
 
 func (m *MockedFakeEC2) maybeExpectDescribeSecurityGroups(clusterID, groupName string) {
 	tags := []ec2types.Tag{

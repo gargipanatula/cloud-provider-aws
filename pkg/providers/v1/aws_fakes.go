@@ -33,7 +33,7 @@ import (
 	// elbtypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	// elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"k8s.io/klog/v2"
 
 	"k8s.io/cloud-provider-aws/pkg/providers/v1/config"
@@ -158,17 +158,17 @@ func (s *FakeAWSServices) countCall(service string, api string, resourceID strin
 }
 
 // Compute returns a fake EC2 client
-func (s *FakeAWSServices) Compute(region string) (iface.EC2, error) {
+func (s *FakeAWSServices) Compute(ctx context.Context, region string) (iface.EC2, error) {
 	return s.ec2, nil
 }
 
 // LoadBalancing returns a fake ELB client
-func (s *FakeAWSServices) LoadBalancing(region string) (ELB, error) {
+func (s *FakeAWSServices) LoadBalancing(ctx context.Context, region string) (ELB, error) {
 	return s.elb, nil
 }
 
 // LoadBalancingV2 returns a fake ELBV2 client
-func (s *FakeAWSServices) LoadBalancingV2(region string) (ELBV2, error) {
+func (s *FakeAWSServices) LoadBalancingV2(ctx context.Context, region string) (ELBV2, error) {
 	return s.elbv2, nil
 }
 
@@ -178,16 +178,16 @@ func (s *FakeAWSServices) Metadata() (config.EC2Metadata, error) {
 }
 
 // KeyManagement returns a fake KMS client
-func (s *FakeAWSServices) KeyManagement(region string) (KMS, error) {
+func (s *FakeAWSServices) KeyManagement(ctx context.Context, region string) (KMS, error) {
 	return s.kms, nil
 }
 
 // FakeEC2 is a fake EC2 client used for testing
 type FakeEC2 interface {
 	iface.EC2
-	CreateSubnet(*ec2types.Subnet) (*ec2.CreateSubnetOutput, error)
+	CreateSubnet(request *ec2types.Subnet) (*ec2.CreateSubnetOutput, error)
 	RemoveSubnets()
-	CreateRouteTable(*ec2types.RouteTable) (*ec2.CreateRouteTableOutput, error)
+	CreateRouteTable(request *ec2types.RouteTable) (*ec2.CreateRouteTableOutput, error)
 	RemoveRouteTables()
 }
 
@@ -201,7 +201,7 @@ type FakeEC2Impl struct {
 }
 
 // DescribeInstances returns fake instance descriptions
-func (ec2i *FakeEC2Impl) DescribeInstances(ctx context.Context, request *ec2.DescribeInstancesInput) ([]ec2types.Instance, error) {
+func (ec2i *FakeEC2Impl) DescribeInstances(ctx context.Context, request *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) ([]ec2types.Instance, error) {
 	matches := []ec2types.Instance{}
 	var matchedInstances []string
 	for _, instance := range ec2i.aws.instances {
@@ -243,68 +243,68 @@ func (ec2i *FakeEC2Impl) DescribeInstances(ctx context.Context, request *ec2.Des
 }
 
 // AttachVolume is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) AttachVolume(request *ec2.AttachVolumeInput) (resp *ec2types.VolumeAttachment, err error) {
+func (ec2i *FakeEC2Impl) AttachVolume(request *ec2.AttachVolumeInput, optFns ...func(*ec2.Options)) (resp *ec2types.VolumeAttachment, err error) {
 	panic("Not implemented")
 }
 
 // DetachVolume is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) DetachVolume(request *ec2.DetachVolumeInput) (resp *ec2types.VolumeAttachment, err error) {
+func (ec2i *FakeEC2Impl) DetachVolume(request *ec2.DetachVolumeInput, optFns ...func(*ec2.Options)) (resp *ec2types.VolumeAttachment, err error) {
 	panic("Not implemented")
 }
 
 // DescribeVolumes is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) DescribeVolumes(request *ec2.DescribeVolumesInput) ([]*ec2types.Volume, error) {
+func (ec2i *FakeEC2Impl) DescribeVolumes(request *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) ([]*ec2types.Volume, error) {
 	panic("Not implemented")
 }
 
 // CreateVolume is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) CreateVolume(request *ec2.CreateVolumeInput) (resp *ec2types.Volume, err error) {
+func (ec2i *FakeEC2Impl) CreateVolume(request *ec2.CreateVolumeInput, optFns ...func(*ec2.Options)) (resp *ec2types.Volume, err error) {
 	panic("Not implemented")
 }
 
 // DeleteVolume is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) DeleteVolume(request *ec2.DeleteVolumeInput) (resp *ec2.DeleteVolumeOutput, err error) {
+func (ec2i *FakeEC2Impl) DeleteVolume(request *ec2.DeleteVolumeInput, optFns ...func(*ec2.Options)) (resp *ec2.DeleteVolumeOutput, err error) {
 	panic("Not implemented")
 }
 
 // DescribeSecurityGroups is not implemented but is required for interface
 // conformance
-func (ec2i *FakeEC2Impl) DescribeSecurityGroups(ctx context.Context, request *ec2.DescribeSecurityGroupsInput) ([]ec2types.SecurityGroup, error) {
+func (ec2i *FakeEC2Impl) DescribeSecurityGroups(ctx context.Context, request *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options)) ([]ec2types.SecurityGroup, error) {
 	panic("Not implemented")
 }
 
 // CreateSecurityGroup is not implemented but is required for interface
 // conformance
-func (ec2i *FakeEC2Impl) CreateSecurityGroup(ctx context.Context, request *ec2.CreateSecurityGroupInput) (*ec2.CreateSecurityGroupOutput, error) {
+func (ec2i *FakeEC2Impl) CreateSecurityGroup(ctx context.Context, request *ec2.CreateSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.CreateSecurityGroupOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteSecurityGroup is not implemented but is required for interface
 // conformance
-func (ec2i *FakeEC2Impl) DeleteSecurityGroup(ctx context.Context, request *ec2.DeleteSecurityGroupInput) (*ec2.DeleteSecurityGroupOutput, error) {
+func (ec2i *FakeEC2Impl) DeleteSecurityGroup(ctx context.Context, request *ec2.DeleteSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSecurityGroupOutput, error) {
 	panic("Not implemented")
 }
 
 // AuthorizeSecurityGroupIngress is not implemented but is required for
 // interface conformance
-func (ec2i *FakeEC2Impl) AuthorizeSecurityGroupIngress(ctx context.Context, request *ec2.AuthorizeSecurityGroupIngressInput) (*ec2.AuthorizeSecurityGroupIngressOutput, error) {
+func (ec2i *FakeEC2Impl) AuthorizeSecurityGroupIngress(ctx context.Context, request *ec2.AuthorizeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.AuthorizeSecurityGroupIngressOutput, error) {
 	panic("Not implemented")
 }
 
 // RevokeSecurityGroupIngress is not implemented but is required for interface
 // conformance
-func (ec2i *FakeEC2Impl) RevokeSecurityGroupIngress(ctx context.Context, request *ec2.RevokeSecurityGroupIngressInput) (*ec2.RevokeSecurityGroupIngressOutput, error) {
+func (ec2i *FakeEC2Impl) RevokeSecurityGroupIngress(ctx context.Context, request *ec2.RevokeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeVolumeModifications is not implemented but is required for interface
 // conformance
-func (ec2i *FakeEC2Impl) DescribeVolumeModifications(*ec2.DescribeVolumesModificationsInput) ([]*ec2types.VolumeModification, error) {
+func (ec2i *FakeEC2Impl) DescribeVolumeModifications(input *ec2.DescribeVolumesModificationsInput, optFns ...func(*ec2.Options)) ([]*ec2types.VolumeModification, error) {
 	panic("Not implemented")
 }
 
 // ModifyVolume is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) ModifyVolume(*ec2.ModifyVolumeInput) (*ec2.ModifyVolumeOutput, error) {
+func (ec2i *FakeEC2Impl) ModifyVolume(input *ec2.ModifyVolumeInput, optFns ...func(*ec2.Options)) (*ec2.ModifyVolumeOutput, error) {
 	panic("Not implemented")
 }
 
@@ -318,7 +318,7 @@ func (ec2i *FakeEC2Impl) CreateSubnet(request *ec2types.Subnet) (*ec2.CreateSubn
 }
 
 // DescribeSubnets returns fake subnet descriptions
-func (ec2i *FakeEC2Impl) DescribeSubnets(ctx context.Context, request *ec2.DescribeSubnetsInput) ([]ec2types.Subnet, error) {
+func (ec2i *FakeEC2Impl) DescribeSubnets(ctx context.Context, request *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) ([]ec2types.Subnet, error) {
 	ec2i.DescribeSubnetsInput = request
 	return ec2i.Subnets, nil
 }
@@ -330,7 +330,7 @@ func (ec2i *FakeEC2Impl) RemoveSubnets() {
 
 // DescribeAvailabilityZones returns fake availability zones
 // For every input returns a hardcoded list of fake availability zones for the moment
-func (ec2i *FakeEC2Impl) DescribeAvailabilityZones(ctx context.Context, request *ec2.DescribeAvailabilityZonesInput) ([]ec2types.AvailabilityZone, error) {
+func (ec2i *FakeEC2Impl) DescribeAvailabilityZones(ctx context.Context, request *ec2.DescribeAvailabilityZonesInput, optFns ...func(*ec2.Options)) ([]ec2types.AvailabilityZone, error) {
 	return []ec2types.AvailabilityZone{
 		{
 			ZoneName: aws.String("us-west-2a"),
@@ -361,7 +361,7 @@ func (ec2i *FakeEC2Impl) DescribeAvailabilityZones(ctx context.Context, request 
 }
 
 // CreateTags is a mock for CreateTags from EC2
-func (ec2i *FakeEC2Impl) CreateTags(ctx context.Context, input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+func (ec2i *FakeEC2Impl) CreateTags(ctx context.Context, input *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
 	for _, id := range input.Resources {
 		callCount := ec2i.aws.countCall("ec2", "CreateTags", id)
 		if id == "i-error" {
@@ -387,7 +387,7 @@ func (ec2i *FakeEC2Impl) CreateTags(ctx context.Context, input *ec2.CreateTagsIn
 }
 
 // DeleteTags is a mock for DeleteTags from EC2
-func (ec2i *FakeEC2Impl) DeleteTags(ctx context.Context, input *ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error) {
+func (ec2i *FakeEC2Impl) DeleteTags(ctx context.Context, input *ec2.DeleteTagsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTagsOutput, error) {
 	for _, id := range input.Resources {
 		if id == "i-error" {
 			return nil, errors.New("Unable to remove tag")
@@ -401,7 +401,7 @@ func (ec2i *FakeEC2Impl) DeleteTags(ctx context.Context, input *ec2.DeleteTagsIn
 }
 
 // DescribeRouteTables returns fake route table descriptions
-func (ec2i *FakeEC2Impl) DescribeRouteTables(ctx context.Context, request *ec2.DescribeRouteTablesInput) ([]ec2types.RouteTable, error) {
+func (ec2i *FakeEC2Impl) DescribeRouteTables(ctx context.Context, request *ec2.DescribeRouteTablesInput, optFns ...func(*ec2.Options)) ([]ec2types.RouteTable, error) {
 	ec2i.DescribeRouteTablesInput = request
 	return ec2i.RouteTables, nil
 }
@@ -421,23 +421,23 @@ func (ec2i *FakeEC2Impl) RemoveRouteTables() {
 }
 
 // CreateRoute is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) CreateRoute(ctx context.Context, request *ec2.CreateRouteInput) (*ec2.CreateRouteOutput, error) {
+func (ec2i *FakeEC2Impl) CreateRoute(ctx context.Context, request *ec2.CreateRouteInput, optFns ...func(*ec2.Options)) (*ec2.CreateRouteOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteRoute is not implemented but is required for interface conformance
-func (ec2i *FakeEC2Impl) DeleteRoute(ctx context.Context, request *ec2.DeleteRouteInput) (*ec2.DeleteRouteOutput, error) {
+func (ec2i *FakeEC2Impl) DeleteRoute(ctx context.Context, request *ec2.DeleteRouteInput, optFns ...func(*ec2.Options)) (*ec2.DeleteRouteOutput, error) {
 	panic("Not implemented")
 }
 
 // ModifyInstanceAttribute is not implemented but is required for interface
 // conformance
-func (ec2i *FakeEC2Impl) ModifyInstanceAttribute(ctx context.Context, request *ec2.ModifyInstanceAttributeInput) (*ec2.ModifyInstanceAttributeOutput, error) {
+func (ec2i *FakeEC2Impl) ModifyInstanceAttribute(ctx context.Context, request *ec2.ModifyInstanceAttributeInput, optFns ...func(*ec2.Options)) (*ec2.ModifyInstanceAttributeOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeVpcs returns fake VPC descriptions
-func (ec2i *FakeEC2Impl) DescribeVpcs(ctx context.Context, request *ec2.DescribeVpcsInput) (*ec2.DescribeVpcsOutput, error) {
+func (ec2i *FakeEC2Impl) DescribeVpcs(ctx context.Context, request *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
 	return &ec2.DescribeVpcsOutput{Vpcs: []ec2types.Vpc{{CidrBlock: aws.String("172.20.0.0/16")}}}, nil
 }
 
@@ -524,108 +524,108 @@ type FakeELB struct {
 
 // CreateLoadBalancer is not implemented but is required for interface
 // conformance
-func (e *FakeELB) CreateLoadBalancer(ctx context.Context, input *elb.CreateLoadBalancerInput) (*elb.CreateLoadBalancerOutput, error) {
+func (e *FakeELB) CreateLoadBalancer(ctx context.Context, input *elb.CreateLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.CreateLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteLoadBalancer is not implemented but is required for interface
 // conformance
-func (e *FakeELB) DeleteLoadBalancer(ctx context.Context, input *elb.DeleteLoadBalancerInput) (*elb.DeleteLoadBalancerOutput, error) {
+func (e *FakeELB) DeleteLoadBalancer(ctx context.Context, input *elb.DeleteLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.DeleteLoadBalancerOutput, error) {
 	return &elb.DeleteLoadBalancerOutput{}, nil
 }
 
 // DescribeLoadBalancers is not implemented but is required for interface
 // conformance
-func (e *FakeELB) DescribeLoadBalancers(ctx context.Context, input *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error) {
+func (e *FakeELB) DescribeLoadBalancers(ctx context.Context, input *elb.DescribeLoadBalancersInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancersOutput, error) {
 	panic("Not implemented")
 }
 
 // AddTags is not implemented but is required for interface conformance
-func (e *FakeELB) AddTags(ctx context.Context, input *elb.AddTagsInput) (*elb.AddTagsOutput, error) {
+func (e *FakeELB) AddTags(ctx context.Context, input *elb.AddTagsInput, optFns ...func(*elb.Options)) (*elb.AddTagsOutput, error) {
 	panic("Not implemented")
 }
 
 // RegisterInstancesWithLoadBalancer is not implemented but is required for
 // interface conformance
-func (e *FakeELB) RegisterInstancesWithLoadBalancer(ctx context.Context, input *elb.RegisterInstancesWithLoadBalancerInput) (*elb.RegisterInstancesWithLoadBalancerOutput, error) {
+func (e *FakeELB) RegisterInstancesWithLoadBalancer(ctx context.Context, input *elb.RegisterInstancesWithLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.RegisterInstancesWithLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
 // DeregisterInstancesFromLoadBalancer is not implemented but is required for
 // interface conformance
-func (e *FakeELB) DeregisterInstancesFromLoadBalancer(ctx context.Context, input *elb.DeregisterInstancesFromLoadBalancerInput) (*elb.DeregisterInstancesFromLoadBalancerOutput, error) {
+func (e *FakeELB) DeregisterInstancesFromLoadBalancer(ctx context.Context, input *elb.DeregisterInstancesFromLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.DeregisterInstancesFromLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
 // DetachLoadBalancerFromSubnets is not implemented but is required for
 // interface conformance
-func (e *FakeELB) DetachLoadBalancerFromSubnets(ctx context.Context, input *elb.DetachLoadBalancerFromSubnetsInput) (*elb.DetachLoadBalancerFromSubnetsOutput, error) {
+func (e *FakeELB) DetachLoadBalancerFromSubnets(ctx context.Context, input *elb.DetachLoadBalancerFromSubnetsInput, optFns ...func(*elb.Options)) (*elb.DetachLoadBalancerFromSubnetsOutput, error) {
 	panic("Not implemented")
 }
 
 // AttachLoadBalancerToSubnets is not implemented but is required for interface
 // conformance
-func (e *FakeELB) AttachLoadBalancerToSubnets(ctx context.Context, input *elb.AttachLoadBalancerToSubnetsInput) (*elb.AttachLoadBalancerToSubnetsOutput, error) {
+func (e *FakeELB) AttachLoadBalancerToSubnets(ctx context.Context, input *elb.AttachLoadBalancerToSubnetsInput, optFns ...func(*elb.Options)) (*elb.AttachLoadBalancerToSubnetsOutput, error) {
 	panic("Not implemented")
 }
 
 // CreateLoadBalancerListeners is not implemented but is required for interface
 // conformance
-func (e *FakeELB) CreateLoadBalancerListeners(ctx context.Context, input *elb.CreateLoadBalancerListenersInput) (*elb.CreateLoadBalancerListenersOutput, error) {
+func (e *FakeELB) CreateLoadBalancerListeners(ctx context.Context, input *elb.CreateLoadBalancerListenersInput, optFns ...func(*elb.Options)) (*elb.CreateLoadBalancerListenersOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteLoadBalancerListeners is not implemented but is required for interface
 // conformance
-func (e *FakeELB) DeleteLoadBalancerListeners(ctx context.Context, input *elb.DeleteLoadBalancerListenersInput) (*elb.DeleteLoadBalancerListenersOutput, error) {
+func (e *FakeELB) DeleteLoadBalancerListeners(ctx context.Context, input *elb.DeleteLoadBalancerListenersInput, optFns ...func(*elb.Options)) (*elb.DeleteLoadBalancerListenersOutput, error) {
 	panic("Not implemented")
 }
 
 // ApplySecurityGroupsToLoadBalancer is not implemented but is required for
 // interface conformance
-func (e *FakeELB) ApplySecurityGroupsToLoadBalancer(ctx context.Context, input *elb.ApplySecurityGroupsToLoadBalancerInput) (*elb.ApplySecurityGroupsToLoadBalancerOutput, error) {
+func (e *FakeELB) ApplySecurityGroupsToLoadBalancer(ctx context.Context, input *elb.ApplySecurityGroupsToLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.ApplySecurityGroupsToLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
 // ConfigureHealthCheck is not implemented but is required for interface
 // conformance
-func (e *FakeELB) ConfigureHealthCheck(ctx context.Context, input *elb.ConfigureHealthCheckInput) (*elb.ConfigureHealthCheckOutput, error) {
+func (e *FakeELB) ConfigureHealthCheck(ctx context.Context, input *elb.ConfigureHealthCheckInput, optFns ...func(*elb.Options)) (*elb.ConfigureHealthCheckOutput, error) {
 	panic("Not implemented")
 }
 
 // CreateLoadBalancerPolicy is not implemented but is required for interface
 // conformance
-func (e *FakeELB) CreateLoadBalancerPolicy(ctx context.Context, input *elb.CreateLoadBalancerPolicyInput) (*elb.CreateLoadBalancerPolicyOutput, error) {
+func (e *FakeELB) CreateLoadBalancerPolicy(ctx context.Context, input *elb.CreateLoadBalancerPolicyInput, optFns ...func(*elb.Options)) (*elb.CreateLoadBalancerPolicyOutput, error) {
 	panic("Not implemented")
 }
 
 // SetLoadBalancerPoliciesForBackendServer is not implemented but is required
 // for interface conformance
-func (e *FakeELB) SetLoadBalancerPoliciesForBackendServer(ctx context.Context, input *elb.SetLoadBalancerPoliciesForBackendServerInput) (*elb.SetLoadBalancerPoliciesForBackendServerOutput, error) {
+func (e *FakeELB) SetLoadBalancerPoliciesForBackendServer(ctx context.Context, input *elb.SetLoadBalancerPoliciesForBackendServerInput, optFns ...func(*elb.Options)) (*elb.SetLoadBalancerPoliciesForBackendServerOutput, error) {
 	panic("Not implemented")
 }
 
 // SetLoadBalancerPoliciesOfListener is not implemented but is required for
 // interface conformance
-func (e *FakeELB) SetLoadBalancerPoliciesOfListener(ctx context.Context, input *elb.SetLoadBalancerPoliciesOfListenerInput) (*elb.SetLoadBalancerPoliciesOfListenerOutput, error) {
+func (e *FakeELB) SetLoadBalancerPoliciesOfListener(ctx context.Context, input *elb.SetLoadBalancerPoliciesOfListenerInput, optFns ...func(*elb.Options)) (*elb.SetLoadBalancerPoliciesOfListenerOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeLoadBalancerPolicies is not implemented but is required for
 // interface conformance
-func (e *FakeELB) DescribeLoadBalancerPolicies(ctx context.Context, input *elb.DescribeLoadBalancerPoliciesInput) (*elb.DescribeLoadBalancerPoliciesOutput, error) {
+func (e *FakeELB) DescribeLoadBalancerPolicies(ctx context.Context, input *elb.DescribeLoadBalancerPoliciesInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancerPoliciesOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeLoadBalancerAttributes is not implemented but is required for
 // interface conformance
-func (e *FakeELB) DescribeLoadBalancerAttributes(ctx context.Context, input *elb.DescribeLoadBalancerAttributesInput) (*elb.DescribeLoadBalancerAttributesOutput, error) {
+func (e *FakeELB) DescribeLoadBalancerAttributes(ctx context.Context, input *elb.DescribeLoadBalancerAttributesInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancerAttributesOutput, error) {
 	panic("Not implemented")
 }
 
 // ModifyLoadBalancerAttributes is not implemented but is required for
 // interface conformance
-func (e *FakeELB) ModifyLoadBalancerAttributes(ctx context.Context, input *elb.ModifyLoadBalancerAttributesInput) (*elb.ModifyLoadBalancerAttributesOutput, error) {
+func (e *FakeELB) ModifyLoadBalancerAttributes(ctx context.Context, input *elb.ModifyLoadBalancerAttributesInput, optFns ...func(*elb.Options)) (*elb.ModifyLoadBalancerAttributesOutput, error) {
 	panic("Not implemented")
 }
 
@@ -635,117 +635,111 @@ type FakeELBV2 struct {
 }
 
 // AddTags is not implemented but is required for interface conformance
-func (elb *FakeELBV2) AddTags(ctx context.Context, input *elbv2.AddTagsInput) (*elbv2.AddTagsOutput, error) {
+func (elb *FakeELBV2) AddTags(ctx context.Context, input *elbv2.AddTagsInput, optFns ...func(*elbv2.Options)) (*elbv2.AddTagsOutput, error) {
 	panic("Not implemented")
 }
 
 // CreateLoadBalancer is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) CreateLoadBalancer(ctx context.Context, input *elbv2.CreateLoadBalancerInput) (*elbv2.CreateLoadBalancerOutput, error) {
+func (elb *FakeELBV2) CreateLoadBalancer(ctx context.Context, input *elbv2.CreateLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeLoadBalancers is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DescribeLoadBalancers(ctx context.Context, input *elbv2.DescribeLoadBalancersInput) (*elbv2.DescribeLoadBalancersOutput, error) {
+func (elb *FakeELBV2) DescribeLoadBalancers(ctx context.Context, input *elbv2.DescribeLoadBalancersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancersOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteLoadBalancer is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DeleteLoadBalancer(ctx context.Context, input *elbv2.DeleteLoadBalancerInput) (*elbv2.DeleteLoadBalancerOutput, error) {
+func (elb *FakeELBV2) DeleteLoadBalancer(ctx context.Context, input *elbv2.DeleteLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteLoadBalancerOutput, error) {
 	panic("Not implemented")
 }
 
 // ModifyLoadBalancerAttributes is not implemented but is required for
 // interface conformance
-func (elb *FakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, input *elbv2.ModifyLoadBalancerAttributesInput) (*elbv2.ModifyLoadBalancerAttributesOutput, error) {
+func (elb *FakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, input *elbv2.ModifyLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyLoadBalancerAttributesOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeLoadBalancerAttributes is not implemented but is required for
 // interface conformance
-func (elb *FakeELBV2) DescribeLoadBalancerAttributes(ctx context.Context, input *elbv2.DescribeLoadBalancerAttributesInput) (*elbv2.DescribeLoadBalancerAttributesOutput, error) {
+func (elb *FakeELBV2) DescribeLoadBalancerAttributes(ctx context.Context, input *elbv2.DescribeLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancerAttributesOutput, error) {
 	panic("Not implemented")
 }
 
 // CreateTargetGroup is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) CreateTargetGroup(ctx context.Context, input *elbv2.CreateTargetGroupInput) (*elbv2.CreateTargetGroupOutput, error) {
+func (elb *FakeELBV2) CreateTargetGroup(ctx context.Context, input *elbv2.CreateTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateTargetGroupOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeTargetGroups is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DescribeTargetGroups(ctx context.Context, input *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error) {
+func (elb *FakeELBV2) DescribeTargetGroups(ctx context.Context, input *elbv2.DescribeTargetGroupsInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupsOutput, error) {
 	panic("Not implemented")
 }
 
 // ModifyTargetGroup is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) ModifyTargetGroup(ctx context.Context, input *elbv2.ModifyTargetGroupInput) (*elbv2.ModifyTargetGroupOutput, error) {
+func (elb *FakeELBV2) ModifyTargetGroup(ctx context.Context, input *elbv2.ModifyTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyTargetGroupOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteTargetGroup is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DeleteTargetGroup(ctx context.Context, input *elbv2.DeleteTargetGroupInput) (*elbv2.DeleteTargetGroupOutput, error) {
+func (elb *FakeELBV2) DeleteTargetGroup(ctx context.Context, input *elbv2.DeleteTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteTargetGroupOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeTargetHealth is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DescribeTargetHealth(ctx context.Context, input *elbv2.DescribeTargetHealthInput) (*elbv2.DescribeTargetHealthOutput, error) {
+func (elb *FakeELBV2) DescribeTargetHealth(ctx context.Context, input *elbv2.DescribeTargetHealthInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetHealthOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeTargetGroupAttributes is not implemented but is required for
 // interface conformance
-func (elb *FakeELBV2) DescribeTargetGroupAttributes(ctx context.Context, input *elbv2.DescribeTargetGroupAttributesInput) (*elbv2.DescribeTargetGroupAttributesOutput, error) {
+func (elb *FakeELBV2) DescribeTargetGroupAttributes(ctx context.Context, input *elbv2.DescribeTargetGroupAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupAttributesOutput, error) {
 	panic("Not implemented")
 }
 
 // ModifyTargetGroupAttributes is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) ModifyTargetGroupAttributes(ctx context.Context, input *elbv2.ModifyTargetGroupAttributesInput) (*elbv2.ModifyTargetGroupAttributesOutput, error) {
+func (elb *FakeELBV2) ModifyTargetGroupAttributes(ctx context.Context, input *elbv2.ModifyTargetGroupAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyTargetGroupAttributesOutput, error) {
 	panic("Not implemented")
 }
 
 // RegisterTargets is not implemented but is required for interface conformance
-func (elb *FakeELBV2) RegisterTargets(ctx context.Context, input *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error) {
+func (elb *FakeELBV2) RegisterTargets(ctx context.Context, input *elbv2.RegisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.RegisterTargetsOutput, error) {
 	panic("Not implemented")
 }
 
 // DeregisterTargets is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DeregisterTargets(ctx context.Context, input *elbv2.DeregisterTargetsInput) (*elbv2.DeregisterTargetsOutput, error) {
+func (elb *FakeELBV2) DeregisterTargets(ctx context.Context, input *elbv2.DeregisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.DeregisterTargetsOutput, error) {
 	panic("Not implemented")
 }
 
 // CreateListener is not implemented but is required for interface conformance
-func (elb *FakeELBV2) CreateListener(ctx context.Context, input *elbv2.CreateListenerInput) (*elbv2.CreateListenerOutput, error) {
+func (elb *FakeELBV2) CreateListener(ctx context.Context, input *elbv2.CreateListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateListenerOutput, error) {
 	panic("Not implemented")
 }
 
 // DescribeListeners is not implemented but is required for interface
 // conformance
-func (elb *FakeELBV2) DescribeListeners(ctx context.Context, input *elbv2.DescribeListenersInput) (*elbv2.DescribeListenersOutput, error) {
+func (elb *FakeELBV2) DescribeListeners(ctx context.Context, input *elbv2.DescribeListenersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeListenersOutput, error) {
 	panic("Not implemented")
 }
 
 // DeleteListener is not implemented but is required for interface conformance
-func (elb *FakeELBV2) DeleteListener(ctx context.Context, input *elbv2.DeleteListenerInput) (*elbv2.DeleteListenerOutput, error) {
+func (elb *FakeELBV2) DeleteListener(ctx context.Context, input *elbv2.DeleteListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteListenerOutput, error) {
 	panic("Not implemented")
 }
 
 // ModifyListener is not implemented but is required for interface conformance
-func (elb *FakeELBV2) ModifyListener(ctx context.Context, input *elbv2.ModifyListenerInput) (*elbv2.ModifyListenerOutput, error) {
-	panic("Not implemented")
-}
-
-// WaitUntilLoadBalancersDeleted is not implemented but is required for
-// interface conformance
-func (elb *FakeELBV2) WaitUntilLoadBalancersDeleted(ctx context.Context, input *elbv2.DescribeLoadBalancersInput) error {
+func (elb *FakeELBV2) ModifyListener(ctx context.Context, input *elbv2.ModifyListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyListenerOutput, error) {
 	panic("Not implemented")
 }
 
@@ -772,7 +766,7 @@ type FakeKMS struct {
 }
 
 // DescribeKey is not implemented but is required for interface conformance
-func (kms *FakeKMS) DescribeKey(*kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error) {
+func (kms *FakeKMS) DescribeKey(context.Context, *kms.DescribeKeyInput, ...func(*kms.Options)) (*kms.DescribeKeyOutput, error) {
 	panic("Not implemented")
 }
 
@@ -822,7 +816,7 @@ func contains(haystack []string, needle string) bool {
 }
 
 // DescribeNetworkInterfaces returns list of ENIs for testing
-func (ec2i *FakeEC2Impl) DescribeNetworkInterfaces(ctx context.Context, input *ec2.DescribeNetworkInterfacesInput) (*ec2.DescribeNetworkInterfacesOutput, error) {
+func (ec2i *FakeEC2Impl) DescribeNetworkInterfaces(ctx context.Context, input *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
 	fargateNodeNamePrefix := "fargate-"
 	networkInterface := []ec2types.NetworkInterface{
 		{

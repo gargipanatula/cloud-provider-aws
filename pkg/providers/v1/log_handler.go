@@ -18,42 +18,45 @@ package aws
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go/aws/request"
+    "fmt"
+
 	"github.com/aws/smithy-go/middleware"
+    "github.com/aws/smithy-go/transport/http"
+    "github.com/aws/smithy-go"
 	"k8s.io/klog/v2"
 )
 
-
-type awsLogger struct{}
-
-func (l *awsLogger) ID() string {
+// Handler for aws-sdk-go-v2 that logs all requests
+type awsHandlerLogger struct{}
+func (l *awsHandlerLogger) ID() string {
     return "k8s/logger"
 }
-
-func (l *awsLogger) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
+func (l *awsHandlerLogger) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
     out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-    awsHandlerLogger(ctx, in)
+    service, name := awsServiceAndName(ctx)
+    klog.V(4).Infof("AWS request: %s %s", service, name)
     return next.HandleFinalize(ctx, in)
 }
 
-// Handler for aws-sdk-go-v2 that logs all requests
-func awsHandlerLogger(ctx context.Context, in middleware.FinalizeInput) {
-    service, name := awsServiceAndName(ctx, in)
-    klog.V(4).Infof("AWS request: %s %s", service, name)
+type awsValidateResponseHandlerLogger struct{}
+func (l *awsValidateResponseHandlerLogger) ID() string {
+    return "k8s/api-validate-response"
+}
+func (l *awsValidateResponseHandlerLogger) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
+    out middleware.DeserializeOutput, metadata middleware.Metadata, err error,
+) {
+    out, metadata, err = next.HandleDeserialize(ctx, in)
+    response, ok := out.RawResponse.(*http.Response)
+	if !ok {
+		return out, metadata, &smithy.DeserializationError{Err: fmt.Errorf("unknown transport type %T", out.RawResponse)}
+	}
+    service, name := awsServiceAndName(ctx)
+	klog.V(4).Infof("AWS API ValidateResponse: %s %s %d", service, name, response.StatusCode)
+    return out, metadata, err
 }
 
-func awsSendHandlerLogger(req *request.Request) {
-	service, name := awsServiceAndName(req)
-	klog.V(4).Infof("AWS API Send: %s %s %v %v", service, name, req.Operation, req.Params)
-}
-
-func awsValidateResponseHandlerLogger(req *request.Request) {
-	service, name := awsServiceAndName(req)
-	klog.V(4).Infof("AWS API ValidateResponse: %s %s %v %v %s", service, name, req.Operation, req.Params, req.HTTPResponse.Status)
-}
-
-func awsServiceAndName(ctx context.Context, in middleware.FinalizeInput) (string, string) {
+func awsServiceAndName(ctx context.Context) (string, string) {
     service := middleware.GetServiceID(ctx)
 
     name := "?"

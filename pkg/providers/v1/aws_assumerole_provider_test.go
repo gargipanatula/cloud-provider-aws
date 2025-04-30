@@ -17,28 +17,29 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 func Test_assumeRoleProviderWithRateLimiting_Retrieve(t *testing.T) {
 	type fields struct {
-		provider             credentials.Provider
+		provider             aws.CredentialsProvider // credentials.Provider
 		invalidateCredsAfter time.Duration
 		RWMutex              sync.RWMutex
 		lastError            error
-		lastValue            credentials.Value
+		lastValue            aws.Credentials // credentials.Value
 		lastRetrieveTime     time.Time
 	}
 	tests := []struct {
 		name                       string
 		fields                     *fields
-		want                       credentials.Value
+		want                       aws.Credentials // credentials.Value
 		wantProviderCalled         bool
 		sleepBeforeCallingProvider time.Duration
 		wantErr                    bool
@@ -46,17 +47,17 @@ func Test_assumeRoleProviderWithRateLimiting_Retrieve(t *testing.T) {
 	}{{
 		name:               "Call assume role provider and verify access ID returned",
 		fields:             &fields{provider: &fakeAssumeRoleProvider{accesskeyID: "fakeID"}},
-		want:               credentials.Value{AccessKeyID: "fakeID"},
+		want:               aws.Credentials{AccessKeyID: "fakeID"},
 		wantProviderCalled: true,
 	}, {
 		name: "Immediate call to assume role API, shouldn't call the underlying provider and return the last value",
 		fields: &fields{
 			provider:             &fakeAssumeRoleProvider{accesskeyID: "fakeID"},
 			invalidateCredsAfter: 100 * time.Millisecond,
-			lastValue:            credentials.Value{AccessKeyID: "fakeID1"},
+			lastValue:            aws.Credentials{AccessKeyID: "fakeID1"},
 			lastRetrieveTime:     time.Now(),
 		},
-		want:                       credentials.Value{AccessKeyID: "fakeID1"},
+		want:                       aws.Credentials{AccessKeyID: "fakeID1"},
 		wantProviderCalled:         false,
 		sleepBeforeCallingProvider: 10 * time.Millisecond,
 	}, {
@@ -77,7 +78,7 @@ func Test_assumeRoleProviderWithRateLimiting_Retrieve(t *testing.T) {
 			invalidateCredsAfter: 100 * time.Millisecond,
 			lastRetrieveTime:     time.Now(),
 		},
-		want:               credentials.Value{},
+		want:               aws.Credentials{},
 		wantProviderCalled: false,
 		wantErr:            true,
 		wantErrString:      "can't assume fake role",
@@ -88,7 +89,7 @@ func Test_assumeRoleProviderWithRateLimiting_Retrieve(t *testing.T) {
 			invalidateCredsAfter: 20 * time.Millisecond,
 			lastRetrieveTime:     time.Now(),
 		},
-		want:                       credentials.Value{AccessKeyID: "fakeID2"},
+		want:                       aws.Credentials{AccessKeyID: "fakeID2"},
 		wantProviderCalled:         true,
 		sleepBeforeCallingProvider: 25 * time.Millisecond,
 	}}
@@ -102,7 +103,7 @@ func Test_assumeRoleProviderWithRateLimiting_Retrieve(t *testing.T) {
 				lastRetrieveTime:     tt.fields.lastRetrieveTime,
 			}
 			time.Sleep(tt.sleepBeforeCallingProvider)
-			got, err := l.Retrieve()
+			got, err := l.Retrieve(context.TODO())
 			if (err != nil) != tt.wantErr && (tt.wantErr && reflect.DeepEqual(err, tt.wantErrString)) {
 				t.Errorf("assumeRoleProviderWithRateLimiting.Retrieve() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -124,9 +125,9 @@ type fakeAssumeRoleProvider struct {
 	providerCalled bool
 }
 
-func (f *fakeAssumeRoleProvider) Retrieve() (credentials.Value, error) {
+func (f *fakeAssumeRoleProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 	f.providerCalled = true
-	return credentials.Value{AccessKeyID: f.accesskeyID}, f.err
+	return aws.Credentials{AccessKeyID: f.accesskeyID}, f.err
 }
 
-func (f *fakeAssumeRoleProvider) IsExpired() bool { return true }
+// func (f *fakeAssumeRoleProvider) IsExpired() bool { return true }

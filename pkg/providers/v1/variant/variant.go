@@ -8,7 +8,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	cloudprovider "k8s.io/cloud-provider"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	// "github.com/aws/aws-sdk-go/aws/credentials"
+	// awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	stscredsv2 "github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 
 	"k8s.io/cloud-provider-aws/pkg/providers/v1/config"
 	"k8s.io/cloud-provider-aws/pkg/providers/v1/iface"
@@ -19,7 +21,7 @@ var variants = make(map[string]Variant)
 
 // Variant is a slightly different type of node
 type Variant interface {
-	Initialize(cloudConfig *config.CloudConfig, credentials *credentials.Credentials,
+	Initialize(cloudConfig *config.CloudConfig, credentials *stscredsv2.AssumeRoleProvider,
 		provider config.SDKProvider, ec2API iface.EC2, region string) error
 	IsSupportedNode(nodeName string) bool
 	NodeAddresses(ctx context.Context, instanceID, vpcID string) ([]v1.NodeAddress, error)

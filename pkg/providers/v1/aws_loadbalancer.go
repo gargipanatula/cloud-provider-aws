@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -33,7 +34,6 @@ import (
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -1517,12 +1517,9 @@ func (c *Cloud) ensureSSLNegotiationPolicy(ctx context.Context, loadBalancer *el
 		},
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case elb.ErrCodePolicyNotFoundException:
-			default:
-				return fmt.Errorf("error describing security policies on load balancer: %q", err)
-			}
+		var notFoundErr *elbtypes.PolicyNotFoundException
+		if !errors.As(err, &notFoundErr) {
+			return fmt.Errorf("error describing security policies on load balancer: %q", err)
 		}
 	}
 

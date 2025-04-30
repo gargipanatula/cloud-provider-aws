@@ -17,10 +17,11 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 const (
@@ -30,33 +31,29 @@ const (
 // assumeRoleProviderWithRateLimiting makes sure we call the underlying provider only
 // once after `invalidateCredsAfter` period
 type assumeRoleProviderWithRateLimiting struct {
-	provider             credentials.Provider
+	provider             aws.CredentialsProvider // credentials.Provider
 	invalidateCredsAfter time.Duration
 	sync.RWMutex
 	lastError        error
-	lastValue        credentials.Value
+	lastValue        aws.Credentials // credentials.Value
 	lastRetrieveTime time.Time
 }
 
-func assumeRoleProvider(provider credentials.Provider) credentials.Provider {
+func assumeRoleProvider(provider aws.CredentialsProvider) aws.CredentialsProvider { // credentials.Provider) credentials.Provider {
 	return &assumeRoleProviderWithRateLimiting{provider: provider,
 		invalidateCredsAfter: invalidateCredsAfter}
 }
 
-func (l *assumeRoleProviderWithRateLimiting) Retrieve() (credentials.Value, error) {
+func (l *assumeRoleProviderWithRateLimiting) Retrieve(ctx context.Context) (aws.Credentials, error) {
 	l.Lock()
 	defer l.Unlock()
 	if time.Since(l.lastRetrieveTime) < l.invalidateCredsAfter {
 		if l.lastError != nil {
-			return credentials.Value{}, l.lastError
+			return aws.Credentials{}, l.lastError
 		}
 		return l.lastValue, nil
 	}
-	l.lastValue, l.lastError = l.provider.Retrieve()
+	l.lastValue, l.lastError = l.provider.Retrieve(ctx)
 	l.lastRetrieveTime = time.Now()
 	return l.lastValue, l.lastError
-}
-
-func (l *assumeRoleProviderWithRateLimiting) IsExpired() bool {
-	return l.provider.IsExpired()
 }

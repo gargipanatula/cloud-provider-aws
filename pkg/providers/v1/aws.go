@@ -18,6 +18,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,9 +30,10 @@ import (
 
 	stscredsv2 "github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws"
+	// awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	// "github.com/aws/aws-sdk-go/aws/credentials"
+	// "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -41,7 +43,7 @@ import (
 	elbtypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"gopkg.in/gcfg.v1"
 
@@ -290,76 +292,74 @@ const MaxReadThenCreateRetries = 30
 
 // Services is an abstraction over AWS, to allow mocking/other implementations
 type Services interface {
-	Compute(region string) (iface.EC2, error)
-	LoadBalancing(region string) (ELB, error)
-	LoadBalancingV2(region string) (ELBV2, error)
+	Compute(ctx context.Context, region string) (iface.EC2, error)
+	LoadBalancing(ctx context.Context, region string) (ELB, error)
+	LoadBalancingV2(ctx context.Context, region string) (ELBV2, error)
 	Metadata() (config.EC2Metadata, error)
-	KeyManagement(region string) (KMS, error)
+	KeyManagement(ctx context.Context, region string) (KMS, error)
 }
 
 // ELB is a simple pass-through of AWS' ELB client interface, which allows for testing
 type ELB interface {
-	CreateLoadBalancer(ctx context.Context, input *elb.CreateLoadBalancerInput) (*elb.CreateLoadBalancerOutput, error)
-	DeleteLoadBalancer(ctx context.Context, input *elb.DeleteLoadBalancerInput) (*elb.DeleteLoadBalancerOutput, error)
-	DescribeLoadBalancers(ctx context.Context, input *elb.DescribeLoadBalancersInput) (*elb.DescribeLoadBalancersOutput, error)
-	AddTags(ctx context.Context, input *elb.AddTagsInput) (*elb.AddTagsOutput, error)
-	RegisterInstancesWithLoadBalancer(ctx context.Context, input *elb.RegisterInstancesWithLoadBalancerInput) (*elb.RegisterInstancesWithLoadBalancerOutput, error)
-	DeregisterInstancesFromLoadBalancer(ctx context.Context, input *elb.DeregisterInstancesFromLoadBalancerInput) (*elb.DeregisterInstancesFromLoadBalancerOutput, error)
-	CreateLoadBalancerPolicy(ctx context.Context, input *elb.CreateLoadBalancerPolicyInput) (*elb.CreateLoadBalancerPolicyOutput, error)
-	SetLoadBalancerPoliciesForBackendServer(ctx context.Context, input *elb.SetLoadBalancerPoliciesForBackendServerInput) (*elb.SetLoadBalancerPoliciesForBackendServerOutput, error)
-	SetLoadBalancerPoliciesOfListener(ctx context.Context, input *elb.SetLoadBalancerPoliciesOfListenerInput) (*elb.SetLoadBalancerPoliciesOfListenerOutput, error)
-	DescribeLoadBalancerPolicies(ctx context.Context, input *elb.DescribeLoadBalancerPoliciesInput) (*elb.DescribeLoadBalancerPoliciesOutput, error)
+	CreateLoadBalancer(ctx context.Context, input *elb.CreateLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.CreateLoadBalancerOutput, error)
+	DeleteLoadBalancer(ctx context.Context, input *elb.DeleteLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.DeleteLoadBalancerOutput, error)
+	DescribeLoadBalancers(ctx context.Context, input *elb.DescribeLoadBalancersInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancersOutput, error)
+	AddTags(ctx context.Context, input *elb.AddTagsInput, optFns ...func(*elb.Options)) (*elb.AddTagsOutput, error)
+	RegisterInstancesWithLoadBalancer(ctx context.Context, input *elb.RegisterInstancesWithLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.RegisterInstancesWithLoadBalancerOutput, error)
+	DeregisterInstancesFromLoadBalancer(ctx context.Context, input *elb.DeregisterInstancesFromLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.DeregisterInstancesFromLoadBalancerOutput, error)
+	CreateLoadBalancerPolicy(ctx context.Context, input *elb.CreateLoadBalancerPolicyInput, optFns ...func(*elb.Options)) (*elb.CreateLoadBalancerPolicyOutput, error)
+	SetLoadBalancerPoliciesForBackendServer(ctx context.Context, input *elb.SetLoadBalancerPoliciesForBackendServerInput, optFns ...func(*elb.Options)) (*elb.SetLoadBalancerPoliciesForBackendServerOutput, error)
+	SetLoadBalancerPoliciesOfListener(ctx context.Context, input *elb.SetLoadBalancerPoliciesOfListenerInput, optFns ...func(*elb.Options)) (*elb.SetLoadBalancerPoliciesOfListenerOutput, error)
+	DescribeLoadBalancerPolicies(ctx context.Context, input *elb.DescribeLoadBalancerPoliciesInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancerPoliciesOutput, error)
 
-	DetachLoadBalancerFromSubnets(ctx context.Context, input *elb.DetachLoadBalancerFromSubnetsInput) (*elb.DetachLoadBalancerFromSubnetsOutput, error)
-	AttachLoadBalancerToSubnets(ctx context.Context, input *elb.AttachLoadBalancerToSubnetsInput) (*elb.AttachLoadBalancerToSubnetsOutput, error)
+	DetachLoadBalancerFromSubnets(ctx context.Context, input *elb.DetachLoadBalancerFromSubnetsInput, optFns ...func(*elb.Options)) (*elb.DetachLoadBalancerFromSubnetsOutput, error)
+	AttachLoadBalancerToSubnets(ctx context.Context, input *elb.AttachLoadBalancerToSubnetsInput, optFns ...func(*elb.Options)) (*elb.AttachLoadBalancerToSubnetsOutput, error)
 
-	CreateLoadBalancerListeners(ctx context.Context, input *elb.CreateLoadBalancerListenersInput) (*elb.CreateLoadBalancerListenersOutput, error)
-	DeleteLoadBalancerListeners(ctx context.Context, input *elb.DeleteLoadBalancerListenersInput) (*elb.DeleteLoadBalancerListenersOutput, error)
+	CreateLoadBalancerListeners(ctx context.Context, input *elb.CreateLoadBalancerListenersInput, optFns ...func(*elb.Options)) (*elb.CreateLoadBalancerListenersOutput, error)
+	DeleteLoadBalancerListeners(ctx context.Context, input *elb.DeleteLoadBalancerListenersInput, optFns ...func(*elb.Options)) (*elb.DeleteLoadBalancerListenersOutput, error)
 
-	ApplySecurityGroupsToLoadBalancer(ctx context.Context, input *elb.ApplySecurityGroupsToLoadBalancerInput) (*elb.ApplySecurityGroupsToLoadBalancerOutput, error)
+	ApplySecurityGroupsToLoadBalancer(ctx context.Context, input *elb.ApplySecurityGroupsToLoadBalancerInput, optFns ...func(*elb.Options)) (*elb.ApplySecurityGroupsToLoadBalancerOutput, error)
 
-	ConfigureHealthCheck(ctx context.Context, input *elb.ConfigureHealthCheckInput) (*elb.ConfigureHealthCheckOutput, error)
+	ConfigureHealthCheck(ctx context.Context, input *elb.ConfigureHealthCheckInput, optFns ...func(*elb.Options)) (*elb.ConfigureHealthCheckOutput, error)
 
-	DescribeLoadBalancerAttributes(ctx context.Context, input *elb.DescribeLoadBalancerAttributesInput) (*elb.DescribeLoadBalancerAttributesOutput, error)
-	ModifyLoadBalancerAttributes(ctx context.Context, input *elb.ModifyLoadBalancerAttributesInput) (*elb.ModifyLoadBalancerAttributesOutput, error)
+	DescribeLoadBalancerAttributes(ctx context.Context, input *elb.DescribeLoadBalancerAttributesInput, optFns ...func(*elb.Options)) (*elb.DescribeLoadBalancerAttributesOutput, error)
+	ModifyLoadBalancerAttributes(ctx context.Context, input *elb.ModifyLoadBalancerAttributesInput, optFns ...func(*elb.Options)) (*elb.ModifyLoadBalancerAttributesOutput, error)
 }
 
 // ELBV2 is a simple pass-through of AWS' ELBV2 client interface, which allows for testing
 type ELBV2 interface {
-	AddTags(ctx context.Context, input *elbv2.AddTagsInput) (*elbv2.AddTagsOutput, error)
+	AddTags(ctx context.Context, input *elbv2.AddTagsInput, optFns ...func(*elbv2.Options)) (*elbv2.AddTagsOutput, error)
 
-	CreateLoadBalancer(ctx context.Context, input *elbv2.CreateLoadBalancerInput) (*elbv2.CreateLoadBalancerOutput, error)
-	DescribeLoadBalancers(ctx context.Context, input *elbv2.DescribeLoadBalancersInput) (*elbv2.DescribeLoadBalancersOutput, error)
-	DeleteLoadBalancer(ctx context.Context, input *elbv2.DeleteLoadBalancerInput) (*elbv2.DeleteLoadBalancerOutput, error)
+	CreateLoadBalancer(ctx context.Context, input *elbv2.CreateLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateLoadBalancerOutput, error)
+	DescribeLoadBalancers(ctx context.Context, input *elbv2.DescribeLoadBalancersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancersOutput, error)
+	DeleteLoadBalancer(ctx context.Context, input *elbv2.DeleteLoadBalancerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteLoadBalancerOutput, error)
 
-	ModifyLoadBalancerAttributes(ctx context.Context, input *elbv2.ModifyLoadBalancerAttributesInput) (*elbv2.ModifyLoadBalancerAttributesOutput, error)
-	DescribeLoadBalancerAttributes(ctx context.Context, input *elbv2.DescribeLoadBalancerAttributesInput) (*elbv2.DescribeLoadBalancerAttributesOutput, error)
+	ModifyLoadBalancerAttributes(ctx context.Context, input *elbv2.ModifyLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyLoadBalancerAttributesOutput, error)
+	DescribeLoadBalancerAttributes(ctx context.Context, input *elbv2.DescribeLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancerAttributesOutput, error)
 
-	CreateTargetGroup(ctx context.Context, input *elbv2.CreateTargetGroupInput) (*elbv2.CreateTargetGroupOutput, error)
-	DescribeTargetGroups(ctx context.Context, input *elbv2.DescribeTargetGroupsInput) (*elbv2.DescribeTargetGroupsOutput, error)
-	ModifyTargetGroup(ctx context.Context, input *elbv2.ModifyTargetGroupInput) (*elbv2.ModifyTargetGroupOutput, error)
-	DeleteTargetGroup(ctx context.Context, input *elbv2.DeleteTargetGroupInput) (*elbv2.DeleteTargetGroupOutput, error)
+	CreateTargetGroup(ctx context.Context, input *elbv2.CreateTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateTargetGroupOutput, error)
+	DescribeTargetGroups(ctx context.Context, input *elbv2.DescribeTargetGroupsInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupsOutput, error)
+	ModifyTargetGroup(ctx context.Context, input *elbv2.ModifyTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyTargetGroupOutput, error)
+	DeleteTargetGroup(ctx context.Context, input *elbv2.DeleteTargetGroupInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteTargetGroupOutput, error)
 
-	DescribeTargetHealth(ctx context.Context, input *elbv2.DescribeTargetHealthInput) (*elbv2.DescribeTargetHealthOutput, error)
+	DescribeTargetHealth(ctx context.Context, input *elbv2.DescribeTargetHealthInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetHealthOutput, error)
 
-	DescribeTargetGroupAttributes(ctx context.Context, input *elbv2.DescribeTargetGroupAttributesInput) (*elbv2.DescribeTargetGroupAttributesOutput, error)
-	ModifyTargetGroupAttributes(ctx context.Context, input *elbv2.ModifyTargetGroupAttributesInput) (*elbv2.ModifyTargetGroupAttributesOutput, error)
+	DescribeTargetGroupAttributes(ctx context.Context, input *elbv2.DescribeTargetGroupAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeTargetGroupAttributesOutput, error)
+	ModifyTargetGroupAttributes(ctx context.Context, input *elbv2.ModifyTargetGroupAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyTargetGroupAttributesOutput, error)
 
-	RegisterTargets(ctx context.Context, input *elbv2.RegisterTargetsInput) (*elbv2.RegisterTargetsOutput, error)
-	DeregisterTargets(ctx context.Context, input *elbv2.DeregisterTargetsInput) (*elbv2.DeregisterTargetsOutput, error)
+	RegisterTargets(ctx context.Context, input *elbv2.RegisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.RegisterTargetsOutput, error)
+	DeregisterTargets(ctx context.Context, input *elbv2.DeregisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.DeregisterTargetsOutput, error)
 
-	CreateListener(ctx context.Context, input *elbv2.CreateListenerInput) (*elbv2.CreateListenerOutput, error)
-	DescribeListeners(ctx context.Context, input *elbv2.DescribeListenersInput) (*elbv2.DescribeListenersOutput, error)
-	DeleteListener(ctx context.Context, input *elbv2.DeleteListenerInput) (*elbv2.DeleteListenerOutput, error)
-	ModifyListener(ctx context.Context, input *elbv2.ModifyListenerInput) (*elbv2.ModifyListenerOutput, error)
-
-	WaitUntilLoadBalancersDeleted(ctx context.Context, input *elbv2.DescribeLoadBalancersInput) error
+	CreateListener(ctx context.Context, input *elbv2.CreateListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.CreateListenerOutput, error)
+	DescribeListeners(ctx context.Context, input *elbv2.DescribeListenersInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeListenersOutput, error)
+	DeleteListener(ctx context.Context, input *elbv2.DeleteListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.DeleteListenerOutput, error)
+	ModifyListener(ctx context.Context, input *elbv2.ModifyListenerInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyListenerOutput, error)
 }
 
 // KMS is a simple pass-through of the Key Management Service client interface,
 // which allows for testing.
 type KMS interface {
-	DescribeKey(*kms.DescribeKeyInput) (*kms.DescribeKeyOutput, error)
+	DescribeKey(ctx context.Context, input *kms.DescribeKeyInput, optFns ...func(*kms.Options)) (*kms.DescribeKeyOutput, error)
 }
 
 var _ cloudprovider.Interface = (*Cloud)(nil)
@@ -482,39 +482,24 @@ func init() {
 			return nil, err
 		}
 
-		sess, err := session.NewSessionWithOptions(session.Options{
-			Config:            *aws.NewConfig().WithRegion(regionName).WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint),
-			SharedConfigState: session.SharedConfigEnable,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to initialize AWS session: %v", err)
-		}
+		// sess, err := session.NewSessionWithOptions(session.Options{
+		// 	Config:            *aws.NewConfig().WithRegion(regionName).WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint),
+		// 	SharedConfigState: session.SharedConfigEnable,
+		// })
+		// if err != nil {
+		// 	return nil, fmt.Errorf("unable to initialize AWS session: %v", err)
+		// }
 
-		var creds *credentials.Credentials
-		var credsV2 *stscredsv2.AssumeRoleProvider
+		var creds *stscredsv2.AssumeRoleProvider
 		if cfg.Global.RoleARN != "" {
-			stsClient, err := getSTSClient(sess, cfg.Global.RoleARN, cfg.Global.SourceARN)
-			if err != nil {
-				return nil, fmt.Errorf("unable to create sts client, %v", err)
-			}
-			creds = credentials.NewChainCredentials(
-				[]credentials.Provider{
-					&credentials.EnvProvider{},
-					assumeRoleProvider(&stscreds.AssumeRoleProvider{
-						Client:  stsClient,
-						RoleARN: cfg.Global.RoleARN,
-					}),
-				})
-
 			stsClientv2, err := services.NewStsV2Client(ctx, regionName, cfg.Global.RoleARN, cfg.Global.SourceARN)
 			if err != nil {
 				return nil, fmt.Errorf("unable to create sts v2 client: %v", err)
 			}
-			credsV2 = stscredsv2.NewAssumeRoleProvider(stsClientv2, cfg.Global.RoleARN)
+			creds = stscredsv2.NewAssumeRoleProvider(stsClientv2, cfg.Global.RoleARN)
 		}
-
 		aws := newAWSSDKProvider(creds, cfg)
-		return newAWSCloud2(*cfg, aws, aws, creds, credsV2)
+		return newAWSCloud2(*cfg, aws, aws, creds)
 	})
 }
 
@@ -570,12 +555,12 @@ func azToRegion(az string) (string, error) {
 }
 
 func newAWSCloud(cfg config.CloudConfig, awsServices Services) (*Cloud, error) {
-	return newAWSCloud2(cfg, awsServices, nil, nil, nil)
+	return newAWSCloud2(cfg, awsServices, nil, nil)
 }
 
 // newAWSCloud creates a new instance of AWSCloud.
 // AWSProvider and instanceId are primarily for tests
-func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.SDKProvider, credentials *credentials.Credentials, credentialsV2 *stscredsv2.AssumeRoleProvider) (*Cloud, error) {
+func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.SDKProvider, credentialsV2 *stscredsv2.AssumeRoleProvider) (*Cloud, error) {
 	ctx := context.Background()
 	// We have some state in the Cloud object
 	// Log so that if we are building multiple Cloud objects, it is obvious!
@@ -601,17 +586,17 @@ func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.
 		return nil, fmt.Errorf("error creating AWS EC2v2 client: %v", err)
 	}
 
-	elb, err := awsServices.LoadBalancing(regionName)
+	elb, err := awsServices.LoadBalancing(ctx, regionName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating AWS ELB client: %v", err)
 	}
 
-	elbv2, err := awsServices.LoadBalancingV2(regionName)
+	elbv2, err := awsServices.LoadBalancingV2(ctx, regionName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating AWS ELBV2 client: %v", err)
 	}
 
-	kms, err := awsServices.KeyManagement(regionName)
+	kms, err := awsServices.KeyManagement(ctx, regionName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating AWS key management client: %v", err)
 	}
@@ -673,7 +658,7 @@ func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.
 
 	variants := variant.GetVariants()
 	for _, v := range variants {
-		if err := v.Initialize(&cfg, credentials, provider, awsCloud.ec2, awsCloud.region); err != nil {
+		if err := v.Initialize(&cfg, credentialsV2, provider, awsCloud.ec2, awsCloud.region); err != nil {
 			return nil, err
 		}
 	}
@@ -1084,10 +1069,10 @@ func IsAWSErrorInstanceNotFound(err error) bool {
 	}
 
 	if awsError, ok := err.(awserr.Error); ok {
-		if awsError.Code() == ec2types.UnsuccessfulInstanceCreditSpecificationErrorCodeInstanceNotFound {
+		if awsError.Code() == string(ec2types.UnsuccessfulInstanceCreditSpecificationErrorCodeInstanceNotFound)  {
 			return true
 		}
-	} else if strings.Contains(err.Error(), ec2types.UnsuccessfulInstanceCreditSpecificationErrorCodeInstanceNotFound) {
+	} else if strings.Contains(err.Error(), string(ec2types.UnsuccessfulInstanceCreditSpecificationErrorCodeInstanceNotFound)) {
 		// In places like https://github.com/kubernetes/cloud-provider-aws/blob/1c6194aad0122ab44504de64187e3d1a7415b198/pkg/providers/v1/aws.go#L1007,
 		// the error has been transformed into something else so check the error string to see if it contains the error code we're looking for.
 		return true
@@ -1176,12 +1161,13 @@ func (c *Cloud) describeLoadBalancerv2(ctx context.Context, name string) (*elbv2
 
 	response, err := c.elbv2.DescribeLoadBalancers(ctx, request)
 	if err != nil {
-		if awsError, ok := err.(awserr.Error); ok {
-			if awsError.Code() == elbv2types.ErrCodeLoadBalancerNotFoundException {
-				return nil, nil
-			}
+		var notFoundErr *elbv2types.LoadBalancerNotFoundException
+		if errors.As(err, &notFoundErr) {
+			// Return nil to indicate that the load balancer was not found
+			return nil, nil
 		}
-		return nil, fmt.Errorf("error describing load balancer: %q", err)
+		// Return a wrapped error for all other cases
+		return nil, fmt.Errorf("error describing load balancer: %w", err)
 	}
 
 	// AWS will not return 2 load balancers with the same name _and_ type.

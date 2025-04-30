@@ -53,7 +53,7 @@ type awsSdkEC2 struct {
 }
 
 // Implementation of EC2.Instances
-func (s *awsSdkEC2) DescribeInstances(ctx context.Context, request *ec2.DescribeInstancesInput) ([]ec2types.Instance, error) {
+func (s *awsSdkEC2) DescribeInstances(ctx context.Context, request *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) ([]ec2types.Instance, error) {
 	// Instances are paged
 	results := []ec2types.Instance{}
 	var nextToken *string
@@ -88,7 +88,7 @@ func (s *awsSdkEC2) DescribeInstances(ctx context.Context, request *ec2.Describe
 }
 
 // DescribeNetworkInterfaces describes network interface provided in the input.
-func (s *awsSdkEC2) DescribeNetworkInterfaces(ctx context.Context, input *ec2.DescribeNetworkInterfacesInput) (*ec2.DescribeNetworkInterfacesOutput, error) {
+func (s *awsSdkEC2) DescribeNetworkInterfaces(ctx context.Context, input *ec2.DescribeNetworkInterfacesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeNetworkInterfacesOutput, error) {
 	requestTime := time.Now()
 	resp, err := s.ec2.DescribeNetworkInterfaces(ctx, input)
 	timeTaken := time.Since(requestTime).Seconds()
@@ -97,7 +97,7 @@ func (s *awsSdkEC2) DescribeNetworkInterfaces(ctx context.Context, input *ec2.De
 }
 
 // Implements EC2.DescribeSecurityGroups
-func (s *awsSdkEC2) DescribeSecurityGroups(ctx context.Context, request *ec2.DescribeSecurityGroupsInput) ([]ec2types.SecurityGroup, error) {
+func (s *awsSdkEC2) DescribeSecurityGroups(ctx context.Context, request *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options)) ([]ec2types.SecurityGroup, error) {
 	// Security groups are paged
 	results := []ec2types.SecurityGroup{}
 	var nextToken *string
@@ -122,7 +122,7 @@ func (s *awsSdkEC2) DescribeSecurityGroups(ctx context.Context, request *ec2.Des
 	return results, nil
 }
 
-func (s *awsSdkEC2) DescribeSubnets(ctx context.Context, request *ec2.DescribeSubnetsInput) ([]ec2types.Subnet, error) {
+func (s *awsSdkEC2) DescribeSubnets(ctx context.Context, request *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) ([]ec2types.Subnet, error) {
 	// Subnets are not paged
 	response, err := s.ec2.DescribeSubnets(ctx, request)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *awsSdkEC2) DescribeSubnets(ctx context.Context, request *ec2.DescribeSu
 	return response.Subnets, nil
 }
 
-func (s *awsSdkEC2) DescribeAvailabilityZones(ctx context.Context, request *ec2.DescribeAvailabilityZonesInput) ([]ec2types.AvailabilityZone, error) {
+func (s *awsSdkEC2) DescribeAvailabilityZones(ctx context.Context, request *ec2.DescribeAvailabilityZonesInput, optFns ...func(*ec2.Options)) ([]ec2types.AvailabilityZone, error) {
 	// AZs are not paged
 	response, err := s.ec2.DescribeAvailabilityZones(ctx, request)
 	if err != nil {
@@ -140,23 +140,23 @@ func (s *awsSdkEC2) DescribeAvailabilityZones(ctx context.Context, request *ec2.
 	return response.AvailabilityZones, err
 }
 
-func (s *awsSdkEC2) CreateSecurityGroup(ctx context.Context, request *ec2.CreateSecurityGroupInput) (*ec2.CreateSecurityGroupOutput, error) {
+func (s *awsSdkEC2) CreateSecurityGroup(ctx context.Context, request *ec2.CreateSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.CreateSecurityGroupOutput, error) {
 	return s.ec2.CreateSecurityGroup(ctx, request)
 }
 
-func (s *awsSdkEC2) DeleteSecurityGroup(ctx context.Context, request *ec2.DeleteSecurityGroupInput) (*ec2.DeleteSecurityGroupOutput, error) {
+func (s *awsSdkEC2) DeleteSecurityGroup(ctx context.Context, request *ec2.DeleteSecurityGroupInput, optFns ...func(*ec2.Options)) (*ec2.DeleteSecurityGroupOutput, error) {
 	return s.ec2.DeleteSecurityGroup(ctx, request)
 }
 
-func (s *awsSdkEC2) AuthorizeSecurityGroupIngress(ctx context.Context, request *ec2.AuthorizeSecurityGroupIngressInput) (*ec2.AuthorizeSecurityGroupIngressOutput, error) {
+func (s *awsSdkEC2) AuthorizeSecurityGroupIngress(ctx context.Context, request *ec2.AuthorizeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.AuthorizeSecurityGroupIngressOutput, error) {
 	return s.ec2.AuthorizeSecurityGroupIngress(ctx, request)
 }
 
-func (s *awsSdkEC2) RevokeSecurityGroupIngress(ctx context.Context, request *ec2.RevokeSecurityGroupIngressInput) (*ec2.RevokeSecurityGroupIngressOutput, error) {
+func (s *awsSdkEC2) RevokeSecurityGroupIngress(ctx context.Context, request *ec2.RevokeSecurityGroupIngressInput, optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error) {
 	return s.ec2.RevokeSecurityGroupIngress(ctx, request)
 }
 
-func (s *awsSdkEC2) CreateTags(ctx context.Context, request *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+func (s *awsSdkEC2) CreateTags(ctx context.Context, request *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
 	requestTime := time.Now()
 	resp, err := s.ec2.CreateTags(ctx, request)
 	timeTaken := time.Since(requestTime).Seconds()
@@ -164,7 +164,7 @@ func (s *awsSdkEC2) CreateTags(ctx context.Context, request *ec2.CreateTagsInput
 	return resp, err
 }
 
-func (s *awsSdkEC2) DeleteTags(ctx context.Context, request *ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error) {
+func (s *awsSdkEC2) DeleteTags(ctx context.Context, request *ec2.DeleteTagsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTagsOutput, error) {
 	requestTime := time.Now()
 	resp, err := s.ec2.DeleteTags(ctx, request)
 	timeTaken := time.Since(requestTime).Seconds()
@@ -172,7 +172,7 @@ func (s *awsSdkEC2) DeleteTags(ctx context.Context, request *ec2.DeleteTagsInput
 	return resp, err
 }
 
-func (s *awsSdkEC2) DescribeRouteTables(ctx context.Context, request *ec2.DescribeRouteTablesInput) ([]ec2types.RouteTable, error) {
+func (s *awsSdkEC2) DescribeRouteTables(ctx context.Context, request *ec2.DescribeRouteTablesInput, optFns ...func(*ec2.Options)) ([]ec2types.RouteTable, error) {
 	results := []ec2types.RouteTable{}
 	var nextToken *string
 	requestTime := time.Now()
@@ -196,18 +196,18 @@ func (s *awsSdkEC2) DescribeRouteTables(ctx context.Context, request *ec2.Descri
 	return results, nil
 }
 
-func (s *awsSdkEC2) CreateRoute(ctx context.Context, request *ec2.CreateRouteInput) (*ec2.CreateRouteOutput, error) {
+func (s *awsSdkEC2) CreateRoute(ctx context.Context, request *ec2.CreateRouteInput, optFns ...func(*ec2.Options)) (*ec2.CreateRouteOutput, error) {
 	return s.ec2.CreateRoute(ctx, request)
 }
 
-func (s *awsSdkEC2) DeleteRoute(ctx context.Context, request *ec2.DeleteRouteInput) (*ec2.DeleteRouteOutput, error) {
+func (s *awsSdkEC2) DeleteRoute(ctx context.Context, request *ec2.DeleteRouteInput, optFns ...func(*ec2.Options)) (*ec2.DeleteRouteOutput, error) {
 	return s.ec2.DeleteRoute(ctx, request)
 }
 
-func (s *awsSdkEC2) ModifyInstanceAttribute(ctx context.Context, request *ec2.ModifyInstanceAttributeInput) (*ec2.ModifyInstanceAttributeOutput, error) {
+func (s *awsSdkEC2) ModifyInstanceAttribute(ctx context.Context, request *ec2.ModifyInstanceAttributeInput, optFns ...func(*ec2.Options)) (*ec2.ModifyInstanceAttributeOutput, error) {
 	return s.ec2.ModifyInstanceAttribute(ctx, request)
 }
 
-func (s *awsSdkEC2) DescribeVpcs(ctx context.Context, request *ec2.DescribeVpcsInput) (*ec2.DescribeVpcsOutput, error) {
+func (s *awsSdkEC2) DescribeVpcs(ctx context.Context, request *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
 	return s.ec2.DescribeVpcs(ctx, request)
 }

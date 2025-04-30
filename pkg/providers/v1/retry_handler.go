@@ -18,18 +18,22 @@ package aws
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/middleware"
+	// "github.com/aws/aws-sdk-go-v2/aws/retry"
 	
 	"k8s.io/klog/v2"
 )
+
+var NON_RETRYABLE_ERROR = "non-retryable error"
 
 const (
 	decayIntervalSeconds = 20
@@ -51,51 +55,28 @@ func NewCrossRequestRetryDelay() *CrossRequestRetryDelay {
 	return c
 }
 
-type beforeSign struct{
+type delayPrerequest struct{
 	delayer *CrossRequestRetryDelay
-	cfg 	aws.Config
 }
-
-func (l *beforeSign) ID() string {
+func (l *delayPrerequest) ID() string {
     return "k8s/delay-presign"
 }
-
-func (l *beforeSign) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
+func (l *delayPrerequest) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
     out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-    err = l.delayer.BeforeSign(ctx, in, l)
-	// throw the error and set the request as non retryable
-	ctx = retry.SetRetryableError(ctx, &retry.Error{
-		Err:       fmt.Errorf("forced no-retry error"),
-		Retryable: false,
-	})
-    return next.HandleFinalize(ctx, in)
-}
-
-// BeforeSign is added to the Sign chain; called before each request
-func (c *CrossRequestRetryDelay) BeforeSign(ctx context.Context, in middleware.FinalizeInput, l *beforeSign) error {
 	now := time.Now()
-	delay := c.backoff.ComputeDelayForRequest(now)
+	delay := l.delayer.backoff.ComputeDelayForRequest(now)
 
-
-	// process wide backoff controller
 	if delay > 0 {
 		klog.Warningf("Inserting delay before AWS request (%s) to avoid RequestLimitExceeded: %s",
-			describeRequest(ctx, in), delay.String())
+			describeRequest(ctx), delay.String())
 
-		// took out sleep call because clients can't have custom sleep functions
-		// configured anymore, or added to the cfg when setting up a client, 
-		// so adding them to requests doesn't make sense
 		if err := sleepWithContext(ctx, delay); err != nil {
-			// just return the error
-			r.Error = awserr.New(request.CanceledErrorCode, "request context canceled", err)
-			r.Retryable = aws.Bool(false)
-			return
+			return middleware.FinalizeOutput{}, middleware.Metadata{}, fmt.Errorf(NON_RETRYABLE_ERROR)
 		}
-
-		// Avoid clock skew problems
-		r.Time = now
 	}
+
+    return next.HandleFinalize(ctx, in)
 }
 
 // Return the operation name, for use in log messages and metrics
@@ -108,27 +89,35 @@ func operationName(ctx context.Context) string {
 }
 
 // Return a user-friendly string describing the request, for use in log messages
-func describeRequest(ctx context.Context, in middleware.FinalizeInput) string {
+func describeRequest(ctx context.Context) string {
 	service := middleware.GetServiceID(ctx)
     
-	return service + "::" + operationName(r)
+	return service + "::" + operationName(ctx)
 }
 
-// AfterRetry is added to the AfterRetry chain; called after any error
-func (c *CrossRequestRetryDelay) AfterRetry(r *request.Request) {
-	if r.Error == nil {
-		return
+type delayAfterRetry struct{
+	delayer *CrossRequestRetryDelay
+	cfg 	aws.Config
+}
+func (l *delayAfterRetry) ID() string {
+    return "k8s/delay-afterretry"
+}
+func (l *delayAfterRetry) HandleFinalize(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
+    out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
+) {
+	finOutput, finMetadata, finErr := next.HandleFinalize(ctx, in)
+
+	if finErr == nil {
+		return finOutput, finMetadata, finErr
 	}
-	awsError, ok := r.Error.(awserr.Error)
-	if !ok {
-		return
-	}
-	if awsError.Code() == "RequestLimitExceeded" {
-		c.backoff.ReportError()
-		recordAWSThrottlesMetric(operationName(r))
+	var ae smithy.APIError
+    if errors.As(err, &ae) && strings.Contains(ae.Error(), "RequestLimitExceeded") {
+        l.delayer.backoff.ReportError()
+		recordAWSThrottlesMetric(operationName(ctx))
 		klog.Warningf("Got RequestLimitExceeded error on AWS request (%s)",
-			describeRequest(r))
-	}
+			describeRequest(ctx))
+    }
+	return finOutput, finMetadata, finErr
 }
 
 // Backoff manages a backoff that varies based on the recently observed failures
@@ -202,6 +191,20 @@ func (b *Backoff) ReportError() {
 	defer b.mutex.Unlock()
 
 	b.countErrorsRequestLimit += 1.0
+}
+
+// Standard retry implementation, except that it doesn't retry RequestLimitExceeded errors.
+// This works in tandem with CrossRequestRetryDelay, which reports these errors before
+// the middleware exits upon seeing this error
+type customRetryer struct {
+    aws.Retryer
+}
+func (r customRetryer) IsErrorRetryable(err error) bool {
+	var ae smithy.APIError
+    if errors.As(err, &ae) && strings.Contains(ae.Error(), NON_RETRYABLE_ERROR) {
+        return false
+    }
+    return r.IsErrorRetryable(err)
 }
 
 func sleepWithContext(ctx context.Context, dur time.Duration) error {

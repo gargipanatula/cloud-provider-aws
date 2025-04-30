@@ -1,10 +1,11 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 
@@ -207,7 +208,9 @@ func (cfg *CloudConfig) GetResolver() endpoints.ResolverFunc {
 	}
 }
 
+// func (cfg *CloudConfig) GetResolver() endp
+
 // SDKProvider can be used by variants to add their own handlers
 type SDKProvider interface {
-	AddHandlers(regionName string, h *request.Handlers)
+	AddHandlers(ctx context.Context, regionName string, cfg aws.Config)
 }
