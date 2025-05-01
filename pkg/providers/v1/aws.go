@@ -2114,7 +2114,7 @@ func (c *Cloud) buildNLBHealthCheckConfiguration(svc *v1.Service) (healthCheckCo
 
 	var protocolStr string = string(hc.Protocol)
 	if parseStringAnnotation(svc.Annotations, ServiceAnnotationLoadBalancerHealthCheckProtocol, &protocolStr) {
-		hc.Protocol = hc.Protocol
+		hc.Protocol = elbv2types.ProtocolEnum(strings.ToUpper(protocolStr))
 	}
 	switch hc.Protocol {
 	case elbv2types.ProtocolEnumHttp, elbv2types.ProtocolEnumHttps:

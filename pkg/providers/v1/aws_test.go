@@ -28,7 +28,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awsv2 "github.com/aws/aws-sdk-go-v2/aws"
+	// awsv2 "github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -3085,9 +3085,13 @@ func TestNLBNodeRegistration(t *testing.T) {
 	if err != nil {
 		t.Errorf("EnsureLoadBalancer returned an error: %v", err)
 	}
+	t.Logf("TestClusterName: %s", TestClusterName)
 	for _, instances := range awsServices.elbv2.(*MockedFakeELBV2).RegisteredInstances {
+		t.Log("instances:", instances)
 		if len(instances) != 3 {
 			t.Errorf("Expected 3 nodes registered with target group, saw %d", len(instances))
+		} else {
+			t.Log("fine")
 		}
 	}
 
@@ -3617,7 +3621,6 @@ func TestCloud_buildNLBHealthCheckConfiguration(t *testing.T) {
 			if tt.modifyConfig != nil {
 				tt.modifyConfig(c.cfg)
 			}
-
 			hc, err := c.buildNLBHealthCheckConfiguration(tt.service)
 			if !tt.wantError {
 				assert.Equal(t, tt.want, hc)

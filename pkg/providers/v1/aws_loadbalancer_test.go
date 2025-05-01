@@ -219,7 +219,7 @@ func TestSyncElbListeners(t *testing.T) {
 		listeners            []elbtypes.Listener
 		listenerDescriptions []elbtypes.ListenerDescription
 		toCreate             []elbtypes.Listener
-		toDelete             []*int64
+		toDelete             []int32
 	}{
 		{
 			name:             "no edge cases",
@@ -233,8 +233,8 @@ func TestSyncElbListeners(t *testing.T) {
 				{Listener: &elbtypes.Listener{InstancePort: aws.Int32(80), InstanceProtocol: aws.String("TCP"), LoadBalancerPort: int32(80), Protocol: aws.String("TCP")}},
 				{Listener: &elbtypes.Listener{InstancePort: aws.Int32(8443), InstanceProtocol: aws.String("TCP"), LoadBalancerPort: int32(8443), Protocol: aws.String("TCP"), SSLCertificateId: aws.String("def-456")}},
 			},
-			toDelete: []*int64{
-				aws.Int64(80),
+			toDelete: []int32{
+				80,
 			},
 			toCreate: []elbtypes.Listener{
 				{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP"), SSLCertificateId: aws.String("abc-123")},
@@ -254,7 +254,7 @@ func TestSyncElbListeners(t *testing.T) {
 			toCreate: []elbtypes.Listener{
 				{InstancePort: aws.Int32(80), InstanceProtocol: aws.String("TCP"), LoadBalancerPort: int32(80), Protocol: aws.String("TCP"), SSLCertificateId: aws.String("def-456")},
 			},
-			toDelete: []*int64{},
+			toDelete: []int32{},
 		},
 		{
 			name:             "no listeners to create",
@@ -266,8 +266,8 @@ func TestSyncElbListeners(t *testing.T) {
 				{Listener: &elbtypes.Listener{InstancePort: aws.Int32(80), InstanceProtocol: aws.String("TCP"), LoadBalancerPort:int32(80), Protocol: aws.String("TCP")}},
 				{Listener: &elbtypes.Listener{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP"), SSLCertificateId: aws.String("abc-123")}},
 			},
-			toDelete: []*int64{
-				aws.Int64(80),
+			toDelete: []int32{
+				80,
 			},
 			toCreate: []elbtypes.Listener{},
 		},
@@ -281,8 +281,8 @@ func TestSyncElbListeners(t *testing.T) {
 				{Listener: &elbtypes.Listener{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP"), SSLCertificateId: aws.String("abc-123")}},
 				{Listener: nil},
 			},
-			toDelete: []*int64{
-				aws.Int64(443),
+			toDelete: []int32{
+				443,
 			},
 			toCreate: []elbtypes.Listener{
 				{InstancePort: aws.Int32(443), InstanceProtocol: aws.String("HTTP"), LoadBalancerPort: int32(443), Protocol: aws.String("HTTP")},
@@ -636,7 +636,7 @@ func TestCloud_chunkTargetDescriptions(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]*elbv2types.TargetDescription
+		want [][]elbv2types.TargetDescription
 	}{
 		{
 			name: "can be evenly chunked",
@@ -661,7 +661,7 @@ func TestCloud_chunkTargetDescriptions(t *testing.T) {
 				},
 				chunkSize: 2,
 			},
-			want: [][]*elbv2types.TargetDescription{
+			want: [][]elbv2types.TargetDescription{
 				{
 					{
 						Id:   aws.String("i-abcdefg1"),
@@ -707,7 +707,7 @@ func TestCloud_chunkTargetDescriptions(t *testing.T) {
 				},
 				chunkSize: 3,
 			},
-			want: [][]*elbv2types.TargetDescription{
+			want: [][]elbv2types.TargetDescription{
 				{
 					{
 						Id:   aws.String("i-abcdefg1"),
@@ -754,7 +754,7 @@ func TestCloud_chunkTargetDescriptions(t *testing.T) {
 				},
 				chunkSize: 4,
 			},
-			want: [][]*elbv2types.TargetDescription{
+			want: [][]elbv2types.TargetDescription{
 				{
 					{
 						Id:   aws.String("i-abcdefg1"),
@@ -798,7 +798,7 @@ func TestCloud_chunkTargetDescriptions(t *testing.T) {
 				},
 				chunkSize: 10,
 			},
-			want: [][]*elbv2types.TargetDescription{
+			want: [][]elbv2types.TargetDescription{
 				{
 					{
 						Id:   aws.String("i-abcdefg1"),
