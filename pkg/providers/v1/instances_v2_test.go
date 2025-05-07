@@ -62,7 +62,7 @@ func TestGetProviderId(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			instance := makeMinimalInstance(tc.instanceID)
-			c, _ := mockInstancesResp(instance, []ec2types.Instance{instance})
+			c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
 
 			result, err := c.getProviderID(context.TODO(), &tc.node)
 			if err != nil {
@@ -169,7 +169,7 @@ func TestInstanceShutdown(t *testing.T) {
 func TestInstanceMetadata(t *testing.T) {
 	t.Run("Should return populated InstanceMetadata", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
-		c, _ := mockInstancesResp(instance, []ec2types.Instance{instance})
+		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
 		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		mockedTopologyManager.On("GetNodeTopology", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&types.InstanceTopology{
@@ -213,7 +213,7 @@ func TestInstanceMetadata(t *testing.T) {
 
 	t.Run("Should skip additional labels if already set", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
-		c, _ := mockInstancesResp(instance, []ec2types.Instance{instance})
+		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
 		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		node := &v1.Node{
@@ -241,7 +241,7 @@ func TestInstanceMetadata(t *testing.T) {
 
 	t.Run("Should swallow errors if getting node topology fails if instance type not expected to be supported", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
-		c, _ := mockInstancesResp(instance, []ec2types.Instance{instance})
+		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
 		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		mockedTopologyManager.On("GetNodeTopology", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil,
@@ -266,7 +266,7 @@ func TestInstanceMetadata(t *testing.T) {
 
 	t.Run("Should not swallow errors if getting node topology fails if instance type is expected to be supported", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
-		c, _ := mockInstancesResp(instance, []ec2types.Instance{instance})
+		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
 		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		mockedTopologyManager.On("GetNodeTopology", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil,
