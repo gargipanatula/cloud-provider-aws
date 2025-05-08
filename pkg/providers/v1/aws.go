@@ -668,7 +668,6 @@ func newAWSCloud2(cfg config.CloudConfig, awsServices Services, provider config.
 		if err != nil {
 			return nil, err
 		}
-
 		if err := awsCloud.tagging.initFromTags(info.Tags); err != nil {
 			return nil, err
 		}
@@ -909,7 +908,7 @@ func (c *Cloud) InstanceExistsByProviderID(ctx context.Context, providerID strin
 	}
 
 	request := &ec2.DescribeInstancesInput{
-		InstanceIds: []string{},
+		InstanceIds: []string{string(instanceID)},
 	}
 
 	instances, err := c.ec2.DescribeInstances(ctx, request)
@@ -948,7 +947,7 @@ func (c *Cloud) InstanceShutdownByProviderID(ctx context.Context, providerID str
 	}
 
 	request := &ec2.DescribeInstancesInput{
-		InstanceIds: []string{},
+		InstanceIds: []string{string(instanceID)},
 	}
 
 	instances, err := c.ec2.DescribeInstances(ctx, request)
