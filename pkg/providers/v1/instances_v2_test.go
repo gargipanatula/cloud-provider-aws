@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/cloud-provider-aws/pkg/resourcemanagers"
 	"k8s.io/cloud-provider-aws/pkg/services"
 )
 
@@ -170,7 +169,7 @@ func TestInstanceMetadata(t *testing.T) {
 	t.Run("Should return populated InstanceMetadata", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
 		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
-		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
+		var mockedTopologyManager MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		mockedTopologyManager.On("GetNodeTopology", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&types.InstanceTopology{
 			AvailabilityZone: awsv2.String("us-west-2b"),
@@ -214,7 +213,7 @@ func TestInstanceMetadata(t *testing.T) {
 	t.Run("Should skip additional labels if already set", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
 		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
-		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
+		var mockedTopologyManager MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		node := &v1.Node{
 			Spec: v1.NodeSpec{
@@ -242,7 +241,7 @@ func TestInstanceMetadata(t *testing.T) {
 	t.Run("Should swallow errors if getting node topology fails if instance type not expected to be supported", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
 		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
-		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
+		var mockedTopologyManager MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		mockedTopologyManager.On("GetNodeTopology", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil,
 			services.NewMockAPIError("InvalidParameterValue", "Nope."))
@@ -267,7 +266,7 @@ func TestInstanceMetadata(t *testing.T) {
 	t.Run("Should not swallow errors if getting node topology fails if instance type is expected to be supported", func(t *testing.T) {
 		instance := makeInstance("i-00000000000000000", "192.168.0.1", "1.2.3.4", "instance-same.ec2.internal", "instance-same.ec2.external", nil, true)
 		c, _ := mockInstancesResp(&instance, []*ec2types.Instance{&instance})
-		var mockedTopologyManager resourcemanagers.MockedInstanceTopologyManager
+		var mockedTopologyManager MockedInstanceTopologyManager
 		c.instanceTopologyManager = &mockedTopologyManager
 		mockedTopologyManager.On("GetNodeTopology", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil,
 			services.NewMockAPIError("InvalidParameterValue", "Nope."))

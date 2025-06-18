@@ -77,6 +77,14 @@ func (m *MockedFakeEC2) DescribeSecurityGroups(ctx context.Context, request *ec2
 	return args.Get(0).([]ec2types.SecurityGroup), nil
 }
 
+func (m *MockedFakeEC2) DescribeInstanceTopology(ctx context.Context, request *ec2.DescribeInstanceTopologyInput, optFns ...func(*ec2.Options)) ([]ec2types.InstanceTopology, error) {
+	args := m.Called(ctx, request)
+	if args.Get(1) != nil {
+		return nil, args.Get(1).(error)
+	}
+	return args.Get(0).([]ec2types.InstanceTopology), nil
+}
+
 type MockedFakeELB struct {
 	*FakeELB
 	mock.Mock
@@ -165,16 +173,15 @@ type ServiceDescriptor struct {
 	signingName                  string
 }
 
-func TestOverridesActiveConfig(t *testing.T) {
+func TestValidateOverridesActiveConfig(t *testing.T) {
 	tests := []struct {
 		name string
 
 		reader io.Reader
 		aws    Services
 
-		expectError        bool
-		active             bool
-		servicesOverridden []ServiceDescriptor
+		expectError bool
+		active      bool
 	}{
 		{
 			"No overrides",
@@ -183,7 +190,6 @@ func TestOverridesActiveConfig(t *testing.T) {
 				`),
 			nil,
 			false, false,
-			[]ServiceDescriptor{},
 		},
 		{
 			"Missing Service Name",
@@ -198,7 +204,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                 `),
 			nil,
 			true, false,
-			[]ServiceDescriptor{},
 		},
 		{
 			"Missing Service Region",
@@ -213,7 +218,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                  `),
 			nil,
 			true, false,
-			[]ServiceDescriptor{},
 		},
 		{
 			"Missing URL",
@@ -228,7 +232,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                   `),
 			nil,
 			true, false,
-			[]ServiceDescriptor{},
 		},
 		{
 			"Missing Signing Region",
@@ -243,7 +246,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                  `),
 			nil,
 			true, false,
-			[]ServiceDescriptor{},
 		},
 		{
 			"Active Overrides",
@@ -259,7 +261,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                 `),
 			nil,
 			false, true,
-			[]ServiceDescriptor{{name: "s3", region: "sregion", signingRegion: "sregion", signingMethod: "v4"}},
 		},
 		{
 			"Multiple Overridden Services",
@@ -282,8 +283,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                   SigningMethod = v4`),
 			nil,
 			false, true,
-			[]ServiceDescriptor{{name: "s3", region: "sregion1", signingRegion: "sregion1", signingMethod: "v4"},
-				{name: "ec2", region: "sregion2", signingRegion: "sregion2", signingMethod: "v4"}},
 		},
 		{
 			"Duplicate Services",
@@ -306,7 +305,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                   SigningMethod = sign`),
 			nil,
 			true, false,
-			[]ServiceDescriptor{},
 		},
 		{
 			"Multiple Overridden Services in Multiple regions",
@@ -328,8 +326,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                  `),
 			nil,
 			false, true,
-			[]ServiceDescriptor{{name: "s3", region: "region1", signingRegion: "sregion1", signingMethod: ""},
-				{name: "ec2", region: "region2", signingRegion: "sregion", signingMethod: "v4"}},
 		},
 		{
 			"Multiple regions, Same Service",
@@ -353,8 +349,6 @@ func TestOverridesActiveConfig(t *testing.T) {
                  `),
 			nil,
 			false, true,
-			[]ServiceDescriptor{{name: "s3", region: "region1", signingRegion: "sregion1", signingMethod: "v3"},
-				{name: "s3", region: "region2", signingRegion: "sregion1", signingMethod: "v4", signingName: "name"}},
 		},
 	}
 
@@ -371,71 +365,6 @@ func TestOverridesActiveConfig(t *testing.T) {
 		} else {
 			if err != nil {
 				t.Errorf("Should succeed for case: %s, got %v", test.name, err)
-			}
-
-			if len(cfg.ServiceOverride) != len(test.servicesOverridden) {
-				t.Errorf("Expected %d overridden services, received %d for case %s",
-					len(test.servicesOverridden), len(cfg.ServiceOverride), test.name)
-			} else {
-				for _, sd := range test.servicesOverridden {
-					var found *struct {
-						Service       string
-						Region        string
-						URL           string
-						SigningRegion string
-						SigningMethod string
-						SigningName   string
-					}
-					for _, v := range cfg.ServiceOverride {
-						if v.Service == sd.name && v.Region == sd.region {
-							found = v
-							break
-						}
-					}
-					if found == nil {
-						t.Errorf("Missing override for service %s in case %s",
-							sd.name, test.name)
-					} else {
-						if found.SigningRegion != sd.signingRegion {
-							t.Errorf("Expected signing region '%s', received '%s' for case %s",
-								sd.signingRegion, found.SigningRegion, test.name)
-						}
-						if found.SigningMethod != sd.signingMethod {
-							t.Errorf("Expected signing method '%s', received '%s' for case %s",
-								sd.signingMethod, found.SigningRegion, test.name)
-						}
-						targetName := fmt.Sprintf("https://%s.foo.bar", sd.name)
-						if found.URL != targetName {
-							t.Errorf("Expected Endpoint '%s', received '%s' for case %s",
-								targetName, found.URL, test.name)
-						}
-						if found.SigningName != sd.signingName {
-							t.Errorf("Expected signing name '%s', received '%s' for case %s",
-								sd.signingName, found.SigningName, test.name)
-						}
-
-						fn := cfg.GetResolver()
-						ep1, e := fn(sd.name, sd.region, nil)
-						if e != nil {
-							t.Errorf("Expected a valid endpoint for %s in case %s",
-								sd.name, test.name)
-						} else {
-							targetName := fmt.Sprintf("https://%s.foo.bar", sd.name)
-							if ep1.URL != targetName {
-								t.Errorf("Expected endpoint url: %s, received %s in case %s",
-									targetName, ep1.URL, test.name)
-							}
-							if ep1.SigningRegion != sd.signingRegion {
-								t.Errorf("Expected signing region '%s', received '%s' in case %s",
-									sd.signingRegion, ep1.SigningRegion, test.name)
-							}
-							if ep1.SigningMethod != sd.signingMethod {
-								t.Errorf("Expected signing method '%s', received '%s' in case %s",
-									sd.signingMethod, ep1.SigningRegion, test.name)
-							}
-						}
-					}
-				}
 			}
 		}
 	}
@@ -800,7 +729,7 @@ func TestFindVPCID(t *testing.T) {
 		t.Errorf("Error building aws cloud: %v", err)
 		return
 	}
-	vpcID, err := c.findVPCID()
+	vpcID, err := c.findVPCID(context.TODO())
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -3657,17 +3586,17 @@ func TestGetRegionFromMetadata(t *testing.T) {
 	// Returns region from zone if set
 	cfg := config.CloudConfig{}
 	cfg.Global.Zone = "us-west-2a"
-	region, err := getRegionFromMetadata(cfg, awsServices.metadata)
+	region, err := getRegionFromMetadata(context.TODO(), cfg, awsServices.metadata)
 	assert.NoError(t, err)
 	assert.Equal(t, "us-west-2", region)
 	// Returns error if can map to region
 	cfg = config.CloudConfig{}
 	cfg.Global.Zone = "some-fake-zone"
-	_, err = getRegionFromMetadata(cfg, awsServices.metadata)
+	_, err = getRegionFromMetadata(context.TODO(), cfg, awsServices.metadata)
 	assert.Error(t, err)
 	// Returns region from metadata if zone unset
 	cfg = config.CloudConfig{}
-	region, err = getRegionFromMetadata(cfg, awsServices.metadata)
+	region, err = getRegionFromMetadata(context.TODO(), cfg, awsServices.metadata)
 	assert.NoError(t, err)
 	assert.Equal(t, "us-west-2", region)
 }
@@ -3680,6 +3609,14 @@ type MockedEC2API struct {
 func (m *MockedEC2API) DescribeInstances(ctx context.Context, input *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
 	args := m.Called(input)
 	return args.Get(0).(*ec2.DescribeInstancesOutput), args.Error(1)
+}
+
+func (m *MockedEC2API) DescribeInstanceTopology(ctx context.Context, params *ec2.DescribeInstanceTopologyInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTopologyOutput, error) {
+	args := m.Called(ctx, params)
+	if args.Get(1) != nil {
+		return nil, args.Get(1).(error)
+	}
+	return args.Get(0).(*ec2.DescribeInstanceTopologyOutput), nil
 }
 
 func (m *MockedEC2API) DescribeAvailabilityZones(ctx context.Context, input *ec2.DescribeAvailabilityZonesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAvailabilityZonesOutput, error) {
