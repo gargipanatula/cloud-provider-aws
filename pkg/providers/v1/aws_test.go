@@ -34,8 +34,7 @@ import (
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	elbv2types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/assert"
@@ -2489,12 +2488,12 @@ func (m *MockedFakeELBV2) DescribeLoadBalancers(ctx context.Context, input *elbv
 	result := []elbv2types.LoadBalancer{}
 
 	for _, lb := range m.LoadBalancers {
-		if _, present := findMeNames[aws.StringValue(lb.LoadBalancerName)]; present {
+		if _, present := findMeNames[aws.ToString(lb.LoadBalancerName)]; present {
 			result = append(result, lb)
-			delete(findMeNames, aws.StringValue(lb.LoadBalancerName))
-		} else if _, present := findMeARNs[aws.StringValue(lb.LoadBalancerArn)]; present {
+			delete(findMeNames, aws.ToString(lb.LoadBalancerName))
+		} else if _, present := findMeARNs[aws.ToString(lb.LoadBalancerArn)]; present {
 			result = append(result, lb)
-			delete(findMeARNs, aws.StringValue(lb.LoadBalancerArn))
+			delete(findMeARNs, aws.ToString(lb.LoadBalancerArn))
 		}
 	}
 
@@ -2512,15 +2511,15 @@ func (m *MockedFakeELBV2) DeleteLoadBalancer(ctx context.Context, input *elbv2.D
 }
 
 func (m *MockedFakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, input *elbv2.ModifyLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.ModifyLoadBalancerAttributesOutput, error) {
-	attrMap, present := m.LoadBalancerAttributes[aws.StringValue(input.LoadBalancerArn)]
+	attrMap, present := m.LoadBalancerAttributes[aws.ToString(input.LoadBalancerArn)]
 
 	if !present {
 		attrMap = make(map[string]string)
-		m.LoadBalancerAttributes[aws.StringValue(input.LoadBalancerArn)] = attrMap
+		m.LoadBalancerAttributes[aws.ToString(input.LoadBalancerArn)] = attrMap
 	}
 
 	for _, attr := range input.Attributes {
-		attrMap[aws.StringValue(attr.Key)] = aws.StringValue(attr.Value)
+		attrMap[aws.ToString(attr.Key)] = aws.ToString(attr.Value)
 	}
 
 	return &elbv2.ModifyLoadBalancerAttributesOutput{
@@ -2531,7 +2530,7 @@ func (m *MockedFakeELBV2) ModifyLoadBalancerAttributes(ctx context.Context, inpu
 func (m *MockedFakeELBV2) DescribeLoadBalancerAttributes(ctx context.Context, input *elbv2.DescribeLoadBalancerAttributesInput, optFns ...func(*elbv2.Options)) (*elbv2.DescribeLoadBalancerAttributesOutput, error) {
 	attrs := []elbv2types.LoadBalancerAttribute{}
 
-	if lbAttrs, present := m.LoadBalancerAttributes[aws.StringValue(input.LoadBalancerArn)]; present {
+	if lbAttrs, present := m.LoadBalancerAttributes[aws.ToString(input.LoadBalancerArn)]; present {
 		for key, value := range lbAttrs {
 			attrs = append(attrs, elbv2types.LoadBalancerAttribute{
 				Key:   aws.String(key),
@@ -2581,7 +2580,7 @@ func (m *MockedFakeELBV2) DescribeTargetGroups(ctx context.Context, input *elbv2
 
 		for _, tg := range m.TargetGroups {
 			for _, lbArn := range tg.LoadBalancerArns {
-				if lbArn == aws.StringValue(input.LoadBalancerArn) {
+				if lbArn == aws.ToString(input.LoadBalancerArn) {
 					targetGroups = append(targetGroups, tg)
 					break
 				}
@@ -2592,7 +2591,7 @@ func (m *MockedFakeELBV2) DescribeTargetGroups(ctx context.Context, input *elbv2
 
 		for _, tg := range m.TargetGroups {
 			for _, name := range input.Names {
-				if aws.StringValue(tg.TargetGroupName) == name {
+				if aws.ToString(tg.TargetGroupName) == name {
 					targetGroups = append(targetGroups, tg)
 					break
 				}
@@ -2603,7 +2602,7 @@ func (m *MockedFakeELBV2) DescribeTargetGroups(ctx context.Context, input *elbv2
 
 		for _, tg := range m.TargetGroups {
 			for _, arn := range input.TargetGroupArns {
-				if aws.StringValue(tg.TargetGroupArn) == arn {
+				if aws.ToString(tg.TargetGroupArn) == arn {
 					targetGroups = append(targetGroups, tg)
 					break
 				}
@@ -2623,7 +2622,7 @@ func (m *MockedFakeELBV2) ModifyTargetGroup(ctx context.Context, input *elbv2.Mo
 	dirtyGroups := []elbv2types.TargetGroup{}
 
 	for _, tg := range m.TargetGroups {
-		if aws.StringValue(tg.TargetGroupArn) == aws.StringValue(input.TargetGroupArn) {
+		if aws.ToString(tg.TargetGroupArn) == aws.ToString(input.TargetGroupArn) {
 			matchingTargetGroup = &tg
 			break
 		}
@@ -2670,14 +2669,14 @@ func (m *MockedFakeELBV2) DeleteTargetGroup(ctx context.Context, input *elbv2.De
 	newTargetGroups := []elbv2types.TargetGroup{}
 
 	for _, tg := range m.TargetGroups {
-		if aws.StringValue(tg.TargetGroupArn) != aws.StringValue(input.TargetGroupArn) {
+		if aws.ToString(tg.TargetGroupArn) != aws.ToString(input.TargetGroupArn) {
 			newTargetGroups = append(newTargetGroups, tg)
 		}
 	}
 
 	m.TargetGroups = newTargetGroups
 
-	delete(m.RegisteredInstances, aws.StringValue(input.TargetGroupArn))
+	delete(m.RegisteredInstances, aws.ToString(input.TargetGroupArn))
 
 	return &elbv2.DeleteTargetGroupOutput{}, nil
 }
@@ -2688,13 +2687,13 @@ func (m *MockedFakeELBV2) DescribeTargetHealth(ctx context.Context, input *elbv2
 	var matchingTargetGroup elbv2types.TargetGroup
 
 	for _, tg := range m.TargetGroups {
-		if aws.StringValue(tg.TargetGroupArn) == aws.StringValue(input.TargetGroupArn) {
+		if aws.ToString(tg.TargetGroupArn) == aws.ToString(input.TargetGroupArn) {
 			matchingTargetGroup = tg
 			break
 		}
 	}
 
-	if registeredTargets, present := m.RegisteredInstances[aws.StringValue(input.TargetGroupArn)]; present {
+	if registeredTargets, present := m.RegisteredInstances[aws.ToString(input.TargetGroupArn)]; present {
 		for _, target := range registeredTargets {
 			healthDescriptions = append(healthDescriptions, elbv2types.TargetHealthDescription{
 				HealthCheckPort: matchingTargetGroup.HealthCheckPort,
@@ -2723,14 +2722,14 @@ func (m *MockedFakeELBV2) ModifyTargetGroupAttributes(ctx context.Context, input
 }
 
 func (m *MockedFakeELBV2) RegisterTargets(ctx context.Context, input *elbv2.RegisterTargetsInput, optFns ...func(*elbv2.Options)) (*elbv2.RegisterTargetsOutput, error) {
-	arn := aws.StringValue(input.TargetGroupArn)
+	arn := aws.ToString(input.TargetGroupArn)
 	alreadyExists := make(map[string]bool)
 	for _, targetID := range m.RegisteredInstances[arn] {
 		alreadyExists[targetID] = true
 	}
 	for _, target := range input.Targets {
-		if !alreadyExists[aws.StringValue(target.Id)] {
-			m.RegisteredInstances[arn] = append(m.RegisteredInstances[arn], aws.StringValue(target.Id))
+		if !alreadyExists[aws.ToString(target.Id)] {
+			m.RegisteredInstances[arn] = append(m.RegisteredInstances[arn], aws.ToString(target.Id))
 		}
 	}
 	return &elbv2.RegisterTargetsOutput{}, nil
@@ -2740,15 +2739,15 @@ func (m *MockedFakeELBV2) DeregisterTargets(ctx context.Context, input *elbv2.De
 	removeMe := make(map[string]bool)
 
 	for _, target := range input.Targets {
-		removeMe[aws.StringValue(target.Id)] = true
+		removeMe[aws.ToString(target.Id)] = true
 	}
 	newRegisteredInstancesForArn := []string{}
-	for _, targetID := range m.RegisteredInstances[aws.StringValue(input.TargetGroupArn)] {
+	for _, targetID := range m.RegisteredInstances[aws.ToString(input.TargetGroupArn)] {
 		if !removeMe[targetID] {
 			newRegisteredInstancesForArn = append(newRegisteredInstancesForArn, targetID)
 		}
 	}
-	m.RegisteredInstances[aws.StringValue(input.TargetGroupArn)] = newRegisteredInstancesForArn
+	m.RegisteredInstances[aws.ToString(input.TargetGroupArn)] = newRegisteredInstancesForArn
 
 	return &elbv2.DeregisterTargetsOutput{}, nil
 }
@@ -2773,8 +2772,8 @@ func (m *MockedFakeELBV2) CreateListener(ctx context.Context, input *elbv2.Creat
 
 	for _, tg := range m.TargetGroups {
 		for _, action := range input.DefaultActions {
-			if aws.StringValue(action.TargetGroupArn) == aws.StringValue(tg.TargetGroupArn) {
-				tg.LoadBalancerArns = append(tg.LoadBalancerArns, aws.StringValue(input.LoadBalancerArn))
+			if aws.ToString(action.TargetGroupArn) == aws.ToString(tg.TargetGroupArn) {
+				tg.LoadBalancerArns = append(tg.LoadBalancerArns, aws.ToString(input.LoadBalancerArn))
 				break
 			}
 		}
@@ -2794,7 +2793,7 @@ func (m *MockedFakeELBV2) DescribeListeners(ctx context.Context, input *elbv2.De
 		listeners := []elbv2types.Listener{}
 
 		for _, lb := range m.Listeners {
-			if aws.StringValue(lb.LoadBalancerArn) == aws.StringValue(input.LoadBalancerArn) {
+			if aws.ToString(lb.LoadBalancerArn) == aws.ToString(input.LoadBalancerArn) {
 				listeners = append(listeners, lb)
 			}
 		}
@@ -2815,14 +2814,14 @@ func (m *MockedFakeELBV2) ModifyListener(ctx context.Context, input *elbv2.Modif
 	modifiedListeners := []elbv2types.Listener{}
 	for i := range m.Listeners {
 		listener := &m.Listeners[i]
-		if aws.StringValue(listener.ListenerArn) == aws.StringValue(input.ListenerArn) {
+		if aws.ToString(listener.ListenerArn) == aws.ToString(input.ListenerArn) {
 			if input.DefaultActions != nil {
 				// for each old action, find the corresponding target group, and remove the listener's LB ARN from its list
 				for _, action := range listener.DefaultActions {
 					var targetGroupForAction *elbv2types.TargetGroup
 
 					for _, tg := range m.TargetGroups {
-						if aws.StringValue(action.TargetGroupArn) == aws.StringValue(tg.TargetGroupArn) {
+						if aws.ToString(action.TargetGroupArn) == aws.ToString(tg.TargetGroupArn) {
 							targetGroupForAction = &tg
 							break
 						}
@@ -2831,7 +2830,7 @@ func (m *MockedFakeELBV2) ModifyListener(ctx context.Context, input *elbv2.Modif
 					if targetGroupForAction != nil {
 						newLoadBalancerARNs := []string{}
 						for _, lbArn := range targetGroupForAction.LoadBalancerArns {
-							if lbArn != aws.StringValue(listener.LoadBalancerArn) {
+							if lbArn != aws.ToString(listener.LoadBalancerArn) {
 								newLoadBalancerARNs = append(newLoadBalancerARNs, lbArn)
 							}
 						}
@@ -2847,14 +2846,14 @@ func (m *MockedFakeELBV2) ModifyListener(ctx context.Context, input *elbv2.Modif
 					var targetGroupForAction *elbv2types.TargetGroup
 
 					for _, tg := range m.TargetGroups {
-						if aws.StringValue(action.TargetGroupArn) == aws.StringValue(tg.TargetGroupArn) {
+						if aws.ToString(action.TargetGroupArn) == aws.ToString(tg.TargetGroupArn) {
 							targetGroupForAction = &tg
 							break
 						}
 					}
 
 					if targetGroupForAction != nil {
-						targetGroupForAction.LoadBalancerArns = append(targetGroupForAction.LoadBalancerArns, aws.StringValue(listener.LoadBalancerArn))
+						targetGroupForAction.LoadBalancerArns = append(targetGroupForAction.LoadBalancerArns, aws.ToString(listener.LoadBalancerArn))
 					}
 				}
 			}
@@ -2984,13 +2983,13 @@ func TestNLBNodeRegistration(t *testing.T) {
 	}
 
 	fauxService.Annotations[ServiceAnnotationLoadBalancerHealthCheckProtocol] = "http"
-	tgARN := aws.StringValue(awsServices.elbv2.(*MockedFakeELBV2).Listeners[0].DefaultActions[0].TargetGroupArn)
+	tgARN := aws.ToString(awsServices.elbv2.(*MockedFakeELBV2).Listeners[0].DefaultActions[0].TargetGroupArn)
 	_, err = c.EnsureLoadBalancer(context.TODO(), TestClusterName, fauxService, nodes)
 	if err != nil {
 		t.Errorf("EnsureLoadBalancer returned an error: %v", err)
 	}
 	assert.Equal(t, 1, len(awsServices.elbv2.(*MockedFakeELBV2).Listeners))
-	assert.NotEqual(t, tgARN, aws.StringValue(awsServices.elbv2.(*MockedFakeELBV2).Listeners[0].DefaultActions[0].TargetGroupArn))
+	assert.NotEqual(t, tgARN, aws.ToString(awsServices.elbv2.(*MockedFakeELBV2).Listeners[0].DefaultActions[0].TargetGroupArn))
 }
 
 func makeNamedNode(s *FakeAWSServices, offset int, name string) *v1.Node {
@@ -3529,7 +3528,7 @@ func TestInstanceExistsByProviderIDForInstanceNotFound(t *testing.T) {
 	mockedEC2API := newMockedEC2API()
 	c := &Cloud{ec2: &awsSdkEC2{ec2: mockedEC2API}}
 
-	mockedEC2API.On("DescribeInstances", mock.Anything).Return(&ec2.DescribeInstancesOutput{}, awserr.New("InvalidInstanceID.NotFound", "Instance not found", nil))
+	mockedEC2API.On("DescribeInstances", mock.Anything).Return(&ec2.DescribeInstancesOutput{}, errors.New("InvalidInstanceID.NotFound: Instance not found"))
 
 	instanceExists, err := c.InstanceExistsByProviderID(context.TODO(), "aws:///us-west-2c/1abc-2def/i-not-found")
 	assert.Nil(t, err)
